@@ -27,6 +27,7 @@ from nolongerevil.lib.types import (
     DeviceShareInvite,
     DeviceSharePermission,
     EntryKey,
+    HvacUsageSegment,
     IntegrationConfig,
     UserInfo,
     WeatherData,
@@ -38,6 +39,7 @@ from nolongerevil.models import (
     DeviceShareInviteModel,
     DeviceShareModel,
     EntryKeyModel,
+    HvacUsageSegmentModel,
     IntegrationConfigModel,
     LogModel,
     SessionModel,
@@ -52,6 +54,7 @@ from nolongerevil.models.converters import (
     device_share_invite_to_model,
     device_share_to_model,
     entry_key_to_model,
+    hvac_usage_segment_to_model,
     integration_config_to_model,
     model_to_api_key,
     model_to_device_object,
@@ -59,6 +62,7 @@ from nolongerevil.models.converters import (
     model_to_device_share,
     model_to_device_share_invite,
     model_to_entry_key,
+    model_to_hvac_usage_segment,
     model_to_integration_config,
     model_to_user_info,
     model_to_weather_data,
@@ -208,8 +212,109 @@ class SQLModelService(AbstractDeviceStateManager):
             for model in models:
                 await session.delete(model)
 
+            await session.execute(
+                delete(HvacUsageSegmentModel).where(HvacUsageSegmentModel.serial == serial)
+            )
+
             await session.commit()
             return count
+
+    async def create_hvac_usage_segment(self, segment: HvacUsageSegment) -> HvacUsageSegment:
+        """Create a new HVAC usage segment."""
+        async with self._session_maker() as session:
+            model = hvac_usage_segment_to_model(segment)
+            session.add(model)
+            await session.commit()
+            await session.refresh(model)
+            return model_to_hvac_usage_segment(model)
+
+    async def update_hvac_usage_segment(
+        self,
+        segment_id: int,
+        *,
+        last_observed_at: datetime | None = None,
+        ended_at: datetime | None = None,
+    ) -> HvacUsageSegment | None:
+        """Update an HVAC usage segment."""
+        async with self._session_maker() as session:
+            result = await session.execute(
+                select(HvacUsageSegmentModel).where(HvacUsageSegmentModel.id == segment_id)
+            )
+            model = result.scalar_one_or_none()
+            if model is None:
+                return None
+
+            if last_observed_at is not None:
+                model.last_observed_at = timestamp_to_ms(last_observed_at) or model.last_observed_at
+            if ended_at is not None:
+                model.ended_at = timestamp_to_ms(ended_at)
+
+            await session.commit()
+            await session.refresh(model)
+            return model_to_hvac_usage_segment(model)
+
+    async def get_open_hvac_usage_segments(self) -> list[HvacUsageSegment]:
+        """Get all currently open HVAC usage segments."""
+        async with self._session_maker() as session:
+            result = await session.execute(
+                select(HvacUsageSegmentModel)
+                .where(HvacUsageSegmentModel.ended_at.is_(None))
+                .order_by(HvacUsageSegmentModel.serial, HvacUsageSegmentModel.started_at)
+            )
+            models = result.scalars().all()
+            return [model_to_hvac_usage_segment(model) for model in models]
+
+    async def list_hvac_usage_segments(
+        self,
+        serial: str,
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[HvacUsageSegment]:
+        """List HVAC usage segments overlapping the requested range."""
+        start_ms = timestamp_to_ms(range_start) or 0
+        end_ms = timestamp_to_ms(range_end) or 0
+
+        async with self._session_maker() as session:
+            result = await session.execute(
+                select(HvacUsageSegmentModel)
+                .where(
+                    HvacUsageSegmentModel.serial == serial,
+                    HvacUsageSegmentModel.started_at < end_ms,
+                    (
+                        HvacUsageSegmentModel.ended_at.is_(None)
+                        | (HvacUsageSegmentModel.ended_at > start_ms)
+                    ),
+                )
+                .order_by(HvacUsageSegmentModel.started_at, HvacUsageSegmentModel.id)
+            )
+            models = result.scalars().all()
+            return [model_to_hvac_usage_segment(model) for model in models]
+
+    async def close_stale_hvac_usage_segments(self) -> int:
+        """Close open HVAC usage segments at their last observed timestamp."""
+        async with self._session_maker() as session:
+            result = await session.execute(
+                select(HvacUsageSegmentModel).where(HvacUsageSegmentModel.ended_at.is_(None))
+            )
+            models = result.scalars().all()
+            for model in models:
+                model.ended_at = model.last_observed_at
+
+            await session.commit()
+            return len(models)
+
+    async def prune_hvac_usage_segments(self, older_than: datetime) -> int:
+        """Delete ended HVAC usage segments older than the cutoff."""
+        cutoff_ms = timestamp_to_ms(older_than) or 0
+        async with self._session_maker() as session:
+            result = await session.execute(
+                delete(HvacUsageSegmentModel).where(
+                    HvacUsageSegmentModel.ended_at.is_not(None),
+                    HvacUsageSegmentModel.ended_at < cutoff_ms,
+                )
+            )
+            await session.commit()
+            return result.rowcount or 0
 
     # Entry key operations
 

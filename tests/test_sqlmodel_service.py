@@ -14,6 +14,8 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
+    HvacUsageSegment,
+    HvacUsageState,
     IntegrationConfig,
     UserInfo,
     WeatherData,
@@ -413,6 +415,83 @@ class TestSQLModelService:
         devices = await sqlmodel_service.list_user_devices("user_list")
         assert len(devices) == 3
         assert all("serial" in d for d in devices)
+
+    async def test_hvac_usage_segment_crud(self, sqlmodel_service):
+        """Test create, update, list, and close operations for HVAC usage segments."""
+        start = datetime.now().replace(microsecond=1000)
+        touch = start + timedelta(minutes=5)
+        end = touch + timedelta(minutes=3)
+
+        created = await sqlmodel_service.create_hvac_usage_segment(
+            HvacUsageSegment(
+                serial="HVAC1",
+                state=HvacUsageState.HEAT,
+                started_at=start,
+                last_observed_at=start,
+            )
+        )
+        assert created.id is not None
+        assert created.state == HvacUsageState.HEAT
+
+        open_segments = await sqlmodel_service.get_open_hvac_usage_segments()
+        assert len(open_segments) == 1
+        assert open_segments[0].serial == "HVAC1"
+
+        updated = await sqlmodel_service.update_hvac_usage_segment(
+            created.id,
+            last_observed_at=touch,
+            ended_at=end,
+        )
+        assert updated is not None
+        assert updated.last_observed_at == touch
+        assert updated.ended_at == end
+
+        listed = await sqlmodel_service.list_hvac_usage_segments(
+            "HVAC1",
+            start - timedelta(minutes=1),
+            end + timedelta(minutes=1),
+        )
+        assert len(listed) == 1
+        assert listed[0].id == created.id
+
+        stale_closed = await sqlmodel_service.close_stale_hvac_usage_segments()
+        assert stale_closed == 0
+
+    async def test_prune_hvac_usage_segments(self, sqlmodel_service):
+        """Test pruning old HVAC usage segments while keeping recent history."""
+        now = datetime.now().replace(microsecond=1000)
+        old_end = now - timedelta(days=95)
+        recent_end = now - timedelta(days=1)
+
+        await sqlmodel_service.create_hvac_usage_segment(
+            HvacUsageSegment(
+                serial="HVAC2",
+                state=HvacUsageState.AC,
+                started_at=old_end - timedelta(minutes=20),
+                last_observed_at=old_end - timedelta(minutes=5),
+                ended_at=old_end,
+            )
+        )
+        kept = await sqlmodel_service.create_hvac_usage_segment(
+            HvacUsageSegment(
+                serial="HVAC2",
+                state=HvacUsageState.FAN,
+                started_at=recent_end - timedelta(minutes=30),
+                last_observed_at=recent_end - timedelta(minutes=5),
+                ended_at=recent_end,
+            )
+        )
+
+        pruned = await sqlmodel_service.prune_hvac_usage_segments(now - timedelta(days=90))
+        assert pruned == 1
+
+        listed = await sqlmodel_service.list_hvac_usage_segments(
+            "HVAC2",
+            now - timedelta(days=7),
+            now + timedelta(days=1),
+        )
+        assert len(listed) == 1
+        assert listed[0].id == kept.id
 
 
 @pytest.mark.asyncio

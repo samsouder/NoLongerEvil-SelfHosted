@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 
@@ -68,6 +68,27 @@ class WeatherData:
     country: str
     fetched_at: datetime
     data: dict[str, Any]
+
+
+class HvacUsageState(StrEnum):
+    """Tracked HVAC runtime lanes."""
+
+    HEAT = "heat"
+    AC = "ac"
+    AUX_HEAT = "aux_heat"
+    FAN = "fan"
+
+
+@dataclass
+class HvacUsageSegment:
+    """Represents a continuous HVAC runtime segment."""
+
+    serial: str
+    state: HvacUsageState
+    started_at: datetime
+    last_observed_at: datetime
+    ended_at: datetime | None = None
+    id: int | None = None
 
 
 class DeviceSharePermission(Enum):

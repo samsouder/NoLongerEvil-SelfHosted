@@ -427,7 +427,8 @@
     }
     .empty-state img { width: 64px; height: 64px; display: block; margin: 0 auto 12px; opacity: 0.35; }
 
-    /* Schedule section */
+    /* Usage + schedule sections */
+    .history-toggle,
     .sched-toggle {
       display: flex; align-items: center; gap: 6px;
       background: none; border: none; cursor: pointer;
@@ -435,11 +436,137 @@
       text-transform: uppercase; letter-spacing: 0.3px;
       padding: 8px 0 0; transition: color 0.15s;
     }
+    .history-toggle:hover,
     .sched-toggle:hover { color: var(--text2); }
+    .history-toggle .mdi,
     .sched-toggle .mdi { font-size: 14px; transition: transform 0.2s; }
+    .history-toggle.open .mdi,
     .sched-toggle.open .mdi { transform: rotate(90deg); }
+    .history-section,
     .sched-section { display: none; padding-top: 12px; }
+    .history-section.open,
     .sched-section.open { display: block; }
+    .history-panel {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
+      padding: 10px;
+    }
+    .history-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 8px;
+      font-size: 11px; color: var(--text3);
+    }
+    .history-summary {
+      display: grid; gap: 4px;
+      margin-bottom: 12px;
+    }
+    .history-summary-head,
+    .history-day-row {
+      display: grid;
+      grid-template-columns: minmax(92px, 1.25fr) repeat(4, minmax(44px, 0.75fr));
+      gap: 8px;
+      align-items: center;
+    }
+    .history-summary-head {
+      padding: 0 10px 4px;
+      font-size: 10px; font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.35px;
+    }
+    .history-day-row {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+      font: inherit;
+    }
+    .history-day-row:hover {
+      background: var(--card);
+      border-color: var(--border);
+    }
+    .history-day-row.active {
+      background: var(--card);
+      border-color: rgba(37, 99, 235, 0.18);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .history-day-label {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .history-day-title {
+      font-size: 12px; font-weight: 650; color: var(--text2);
+    }
+    .history-day-date {
+      font-size: 10px; color: var(--text3);
+    }
+    .history-cell {
+      font-size: 11px; font-weight: 650; color: var(--text2);
+    }
+    .history-cell.zero { color: var(--text3); opacity: 0.7; }
+    .history-timeline-card {
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    .history-timeline-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 8px;
+    }
+    .history-timeline-title {
+      font-size: 12px; font-weight: 650; color: var(--text2);
+    }
+    .history-axis {
+      margin-left: 72px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      margin-bottom: 6px;
+    }
+    .history-axis-label {
+      font-size: 9px; color: var(--text3);
+      text-align: center;
+    }
+    .history-axis-label:first-child { text-align: left; }
+    .history-axis-label:last-child { text-align: right; }
+    .history-lane {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 6px;
+    }
+    .history-lane:last-child { margin-bottom: 0; }
+    .history-lane-label {
+      width: 62px;
+      font-size: 11px; font-weight: 650; color: var(--text2);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .history-track {
+      position: relative;
+      flex: 1;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.12);
+      overflow: hidden;
+    }
+    .history-gridline {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: rgba(148, 163, 184, 0.22);
+    }
+    .history-bar {
+      position: absolute; top: 3px; bottom: 3px;
+      border-radius: 999px;
+      min-width: 2px;
+    }
+    .history-bar.heat { background: rgba(245, 158, 11, 0.92); }
+    .history-bar.ac { background: rgba(59, 130, 246, 0.92); }
+    .history-bar.aux_heat { background: rgba(249, 115, 22, 0.92); }
+    .history-bar.fan { background: rgba(34, 197, 94, 0.92); }
+    .history-empty {
+      font-size: 12px; color: var(--text3);
+      padding: 6px 2px 2px;
+    }
     .sched-grid { margin-bottom: 4px; }
     .sched-row {
       display: flex; align-items: center; height: 48px;
@@ -654,6 +781,7 @@
   <script>
     const BASE_PATH = document.body.dataset.ingressPath || '';
     const pendingTargets = {};
+    const usageHistoryCache = {};
     // Declare before first loadDevices() call — let is not initialized until declaration runs
     let _ssePending = false;
     let _scanActive = false;  // true while scan results are displayed; pauses auto-refresh
@@ -665,12 +793,18 @@
     // SSE: server pushes events when device state changes
     function connectSSE() {
       const es = new EventSource(BASE_PATH + '/api/events');
-      es.onmessage = function() {
+      es.onmessage = async function(evt) {
+        let changedSerial = null;
+        try { changedSerial = JSON.parse(evt.data || '{}').serial || null; }
+        catch (e) { changedSerial = null; }
         // If user has active interaction, defer
         if (activePopover) { _ssePending = true; return; }
         for (const k in scheduleCache) { if (scheduleCache[k].dirty) { _ssePending = true; return; } }
         if (_scanActive) { _ssePending = true; return; }
-        loadDevices();
+        await loadDevices();
+        if (changedSerial && usageHistoryCache[changedSerial] && usageHistoryCache[changedSerial].open) {
+          loadUsageHistory(changedSerial, { silent: true });
+        }
       };
       es.onerror = function() { es.close(); setTimeout(connectSSE, 5000); };
     }
@@ -760,6 +894,37 @@
     function modeKey(m) { if (!m) return 'off'; const v = m.toLowerCase(); return (v === 'heat-cool' || v === 'range') ? 'auto' : v; }
     function modeApi(k) { return k === 'auto' ? 'heat-cool' : k; }
     function esc(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+    function todayLocalIso() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function fmtDurationShort(seconds) {
+      if (!seconds) return '0m';
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (hours && minutes) return hours + 'h ' + String(minutes).padStart(2, '0') + 'm';
+      if (hours) return hours + 'h';
+      if (minutes) return minutes + 'm';
+      return '<1m';
+    }
+    function fmtTimeOfDay(iso) {
+      try {
+        return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      } catch (e) {
+        return iso;
+      }
+    }
+    function fmtDayLabel(dateStr) {
+      try {
+        const d = new Date(dateStr + 'T12:00:00');
+        return {
+          title: d.toLocaleDateString([], { weekday: 'short' }),
+          date: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        };
+      } catch (e) {
+        return { title: dateStr, date: '' };
+      }
+    }
 
     function relativeTime(iso) {
       if (!iso) return '';
@@ -901,6 +1066,123 @@
         }
       }
       renderDevices(lastDevices);
+    }
+
+    async function loadUsageHistory(serial, options) {
+      const cache = usageHistoryCache[serial] || {};
+      cache.days = cache.days || 10;
+      cache.selectedDate = (options && options.selectedDate) || cache.selectedDate || todayLocalIso();
+      cache.loading = true;
+      cache.error = null;
+      usageHistoryCache[serial] = cache;
+      if (!(options && options.silent)) renderDevices(lastDevices);
+      try {
+        const query = new URLSearchParams({
+          serial: serial,
+          days: String(cache.days),
+          date: cache.selectedDate,
+        });
+        const r = await fetch(BASE_PATH + '/api/usage-history?' + query.toString());
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Failed to load usage history');
+        cache.data = j;
+      } catch (e) {
+        cache.error = e.message;
+      } finally {
+        cache.loading = false;
+        usageHistoryCache[serial] = cache;
+        renderDevices(lastDevices);
+      }
+    }
+
+    function toggleUsageHistory(serial) {
+      const cache = usageHistoryCache[serial] || {};
+      cache.open = !cache.open;
+      cache.days = cache.days || 10;
+      cache.selectedDate = cache.selectedDate || todayLocalIso();
+      usageHistoryCache[serial] = cache;
+      renderDevices(lastDevices);
+      if (cache.open && !cache.loading && !cache.data) loadUsageHistory(serial);
+    }
+
+    function selectUsageHistoryDate(serial, dateStr) {
+      const cache = usageHistoryCache[serial] || {};
+      cache.selectedDate = dateStr;
+      usageHistoryCache[serial] = cache;
+      loadUsageHistory(serial, { selectedDate: dateStr });
+    }
+
+    function renderUsageHistorySection(serial) {
+      const cache = usageHistoryCache[serial];
+      if (!cache || !cache.open) return '';
+      if (cache.loading) {
+        return '<div class="history-section open"><div class="history-panel"><span style="color:var(--text3);font-size:12px"><i class="mdi mdi-loading mdi-spin"></i> Loading usage history...</span></div></div>';
+      }
+      if (cache.error) {
+        return '<div class="history-section open"><div class="history-panel"><span class="msg-error" style="font-size:12px">' + esc(cache.error) + '</span></div></div>';
+      }
+      if (!cache.data) {
+        return '<div class="history-section open"><div class="history-panel"><span style="color:var(--text3);font-size:12px">No usage history loaded.</span></div></div>';
+      }
+
+      const data = cache.data;
+      const selectedDate = cache.selectedDate || (data.timeline && data.timeline.date) || todayLocalIso();
+      const days = data.days || [];
+      const timeline = (data.timeline && data.timeline.segments) || [];
+      const laneLabels = { heat: 'Heat', ac: 'AC', aux_heat: 'Aux Heat', fan: 'Fan' };
+      const summaryHead = '<div class="history-summary-head"><span>Day</span><span>Heat</span><span>AC</span><span>Aux</span><span>Fan</span></div>';
+      const summaryRows = days.map(function(day) {
+        const label = fmtDayLabel(day.date);
+        const active = day.date === selectedDate ? ' active' : '';
+        return '<button class="history-day-row' + active + '" onclick="selectUsageHistoryDate(\'' + serial + '\',\'' + day.date + '\')">' +
+          '<span class="history-day-label"><span class="history-day-title">' + esc(label.title) + '</span><span class="history-day-date">' + esc(label.date) + '</span></span>' +
+          '<span class="history-cell' + (day.heat_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.heat_seconds)) + '</span>' +
+          '<span class="history-cell' + (day.ac_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.ac_seconds)) + '</span>' +
+          '<span class="history-cell' + (day.aux_heat_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.aux_heat_seconds)) + '</span>' +
+          '<span class="history-cell' + (day.fan_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.fan_seconds)) + '</span>' +
+        '</button>';
+      }).join('');
+
+      const axis = ['12a', '6a', '12p', '6p', '12a'].map(function(label, idx) {
+        const align = idx === 0 ? ' style="text-align:left"' : idx === 4 ? ' style="text-align:right"' : '';
+        return '<span class="history-axis-label"' + align + '>' + label + '</span>';
+      }).join('');
+
+      const lanes = ['heat', 'ac', 'aux_heat', 'fan'].map(function(state) {
+        const bars = timeline.filter(function(segment) { return segment.state === state; }).map(function(segment) {
+          const start = new Date(segment.started_at);
+          const end = new Date(segment.ended_at);
+          const startSeconds = (start.getHours() * 3600) + (start.getMinutes() * 60) + start.getSeconds();
+          const endSeconds = (end.getHours() * 3600) + (end.getMinutes() * 60) + end.getSeconds();
+          const left = (startSeconds / 86400) * 100;
+          const width = Math.max(((endSeconds - startSeconds) / 86400) * 100, 0.35);
+          const title = laneLabels[state] + ': ' + fmtTimeOfDay(segment.started_at) + ' - ' + fmtTimeOfDay(segment.ended_at) + ' (' + fmtDurationShort(segment.duration_seconds) + ')';
+          return '<span class="history-bar ' + state + '" style="left:' + left + '%;width:' + width + '%" title="' + esc(title) + '"></span>';
+        }).join('');
+        const grid = [25, 50, 75].map(function(pct) {
+          return '<span class="history-gridline" style="left:' + pct + '%"></span>';
+        }).join('');
+        return '<div class="history-lane">' +
+          '<span class="history-lane-label">' + laneLabels[state] + '</span>' +
+          '<div class="history-track">' + grid + bars + '</div>' +
+        '</div>';
+      }).join('');
+
+      const selectedLabel = fmtDayLabel(selectedDate);
+      const emptyState = timeline.length
+        ? ''
+        : '<div class="history-empty">No tracked runtime for ' + esc(selectedLabel.title + ' ' + selectedLabel.date).trim() + '.</div>';
+
+      return '<div class="history-section open"><div class="history-panel">' +
+        '<div class="history-meta"><span>Last ' + esc(cache.days) + ' days</span><span>' + esc(data.timezone || 'local') + '</span></div>' +
+        '<div class="history-summary">' + summaryHead + summaryRows + '</div>' +
+        '<div class="history-timeline-card">' +
+          '<div class="history-timeline-head"><span class="history-timeline-title">Timeline for ' + esc(selectedLabel.title + ' ' + selectedLabel.date).trim() + '</span><span style="font-size:11px;color:var(--text3)">Fan overlaps heat/cool when the blower is running</span></div>' +
+          '<div class="history-axis">' + axis + '</div>' +
+          (timeline.length ? lanes : '') +
+          emptyState +
+        '</div>' +
+      '</div></div>';
     }
 
     function circleTemp(entry, scale) {
@@ -1465,6 +1747,9 @@
           safetyHtml = '<span class="safety-pill" title="Safety temperatures are activating HVAC to protect your home"><i class="mdi mdi-alert"></i> Safety</span>';
         }
 
+        const usageOpen = usageHistoryCache[S] && usageHistoryCache[S].open;
+        const usageToggleCls = 'history-toggle' + (usageOpen ? ' open' : '');
+        const usageHtml = renderUsageHistorySection(S);
         const schedOpen = scheduleCache[S] && scheduleCache[S].open;
         const schedToggleCls = 'sched-toggle' + (schedOpen ? ' open' : '');
         const schedHtml = renderScheduleSection(S, scale, d.mode === 'heat-cool' ? 'RANGE' : (d.mode || 'heat').toUpperCase());
@@ -1504,6 +1789,10 @@
             '<span class="controls-spacer"></span>' +
             fanHtml +
           '</div>' +
+          '<button class="' + usageToggleCls + '" onclick="toggleUsageHistory(' + q + ')">' +
+            '<i class="mdi mdi-chevron-right"></i> Usage History' +
+          '</button>' +
+          usageHtml +
           '<button class="' + schedToggleCls + '" onclick="toggleSchedule(' + q + ')">' +
             '<i class="mdi mdi-chevron-right"></i> ' + ({heat:'Heat',cool:'Cool','heat-cool':'Range'}[d.mode] || '') + ' Schedule' +
           '</button>' +

@@ -23,6 +23,7 @@ from nolongerevil.services.device_availability import DeviceAvailability
 from nolongerevil.services.device_state_service import DeviceStateService
 from nolongerevil.services.sqlmodel_service import SQLModelService
 from nolongerevil.services.subscription_manager import SubscriptionManager
+from nolongerevil.services.usage_history_service import UsageHistoryService
 from nolongerevil.services.weather_service import WeatherService
 
 logger = get_logger(__name__)
@@ -279,6 +280,10 @@ async def run_server() -> None:
     state_service.set_integration_manager(integration_manager)
     device_availability.set_integration_manager(integration_manager)
 
+    usage_history_service = UsageHistoryService(storage, state_service)
+    await usage_history_service.initialize()
+    integration_manager.add_state_callback(usage_history_service.handle_state_change)
+
     # Start background services
     await device_availability.start()
     await integration_manager.start()
@@ -298,6 +303,7 @@ async def run_server() -> None:
         storage,
     )
     control_app["integration_manager"] = integration_manager
+    control_app["usage_history_service"] = usage_history_service
 
     # Get SSL context
     ssl_context = get_ssl_context()
@@ -346,6 +352,8 @@ async def run_server() -> None:
     # Graceful shutdown
     logger.info("Starting graceful shutdown...")
 
+    integration_manager.remove_state_callback(usage_history_service.handle_state_change)
+    await usage_history_service.close()
     await integration_manager.stop()
     await device_availability.stop()
 

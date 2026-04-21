@@ -55,3 +55,21 @@ class LogModel(SQLModel, table=True):
         Index("idx_logs_serial", "serial"),
         Index("idx_logs_ts", "ts"),
     )
+
+
+class HvacUsageSegmentModel(SQLModel, table=True):
+    """HVAC runtime segment stored in the 'hvac_usage_segments' table."""
+
+    __tablename__ = "hvac_usage_segments"
+
+    id: int | None = Field(default=None, primary_key=True)
+    serial: str
+    state: str
+    started_at: int
+    last_observed_at: int
+    ended_at: int | None = None
+
+    __table_args__ = (
+        Index("idx_hvac_usage_serial_started_at", "serial", "started_at"),
+        Index("idx_hvac_usage_serial_state_ended_at", "serial", "state", "ended_at"),
+    )

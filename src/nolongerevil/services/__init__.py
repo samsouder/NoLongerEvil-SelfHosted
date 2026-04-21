@@ -5,6 +5,7 @@ from .device_availability import DeviceAvailability
 from .device_state_service import DeviceStateService
 from .sqlmodel_service import SQLModelService
 from .subscription_manager import SubscriptionManager
+from .usage_history_service import UsageHistoryService
 from .weather_service import WeatherService
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "DeviceStateService",
     "SQLModelService",
     "SubscriptionManager",
+    "UsageHistoryService",
     "WeatherService",
 ]

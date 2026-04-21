@@ -13,13 +13,15 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
+    HvacUsageSegment,
+    HvacUsageState,
     IntegrationConfig,
     UserInfo,
     WeatherData,
 )
 from nolongerevil.models.auth import APIKeyModel
 from nolongerevil.models.base import ms_to_timestamp, now_ms, timestamp_to_ms
-from nolongerevil.models.device import DeviceObjectModel
+from nolongerevil.models.device import DeviceObjectModel, HvacUsageSegmentModel
 from nolongerevil.models.integration import IntegrationConfigModel, WeatherDataModel
 from nolongerevil.models.sharing import DeviceShareInviteModel, DeviceShareModel
 from nolongerevil.models.user import DeviceOwnerModel, EntryKeyModel, UserInfoModel
@@ -48,6 +50,30 @@ def model_to_device_object(model: DeviceObjectModel) -> DeviceObject:
         object_timestamp=model.object_timestamp,
         value=json.loads(model.value),
         updated_at=ms_to_timestamp(model.updatedAt) or datetime.now(),
+    )
+
+
+def hvac_usage_segment_to_model(segment: HvacUsageSegment) -> HvacUsageSegmentModel:
+    """Convert HVAC usage segment dataclass to SQLModel."""
+    return HvacUsageSegmentModel(
+        id=segment.id,
+        serial=segment.serial,
+        state=segment.state.value,
+        started_at=timestamp_to_ms(segment.started_at) or now_ms(),
+        last_observed_at=timestamp_to_ms(segment.last_observed_at) or now_ms(),
+        ended_at=timestamp_to_ms(segment.ended_at),
+    )
+
+
+def model_to_hvac_usage_segment(model: HvacUsageSegmentModel) -> HvacUsageSegment:
+    """Convert SQLModel to HVAC usage segment dataclass."""
+    return HvacUsageSegment(
+        id=model.id,
+        serial=model.serial,
+        state=HvacUsageState(model.state),
+        started_at=ms_to_timestamp(model.started_at) or datetime.now(),
+        last_observed_at=ms_to_timestamp(model.last_observed_at) or datetime.now(),
+        ended_at=ms_to_timestamp(model.ended_at),
     )
 
 

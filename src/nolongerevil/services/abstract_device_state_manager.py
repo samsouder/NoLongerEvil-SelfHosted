@@ -1,6 +1,7 @@
 """Abstract base class for device state persistence."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any
 
 from nolongerevil.lib.types import (
@@ -10,6 +11,7 @@ from nolongerevil.lib.types import (
     DeviceShare,
     DeviceShareInvite,
     EntryKey,
+    HvacUsageSegment,
     IntegrationConfig,
     UserInfo,
     WeatherData,
@@ -65,6 +67,48 @@ class AbstractDeviceStateManager(ABC):
         Returns:
             Number of objects deleted
         """
+        pass
+
+    # HVAC usage history operations
+    @abstractmethod
+    async def create_hvac_usage_segment(self, segment: HvacUsageSegment) -> HvacUsageSegment:
+        """Create a new HVAC usage segment."""
+        pass
+
+    @abstractmethod
+    async def update_hvac_usage_segment(
+        self,
+        segment_id: int,
+        *,
+        last_observed_at: datetime | None = None,
+        ended_at: datetime | None = None,
+    ) -> HvacUsageSegment | None:
+        """Update an HVAC usage segment."""
+        pass
+
+    @abstractmethod
+    async def get_open_hvac_usage_segments(self) -> list[HvacUsageSegment]:
+        """Get all currently open HVAC usage segments."""
+        pass
+
+    @abstractmethod
+    async def list_hvac_usage_segments(
+        self,
+        serial: str,
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[HvacUsageSegment]:
+        """List HVAC usage segments overlapping the requested range."""
+        pass
+
+    @abstractmethod
+    async def close_stale_hvac_usage_segments(self) -> int:
+        """Close open HVAC usage segments at their last observed timestamp."""
+        pass
+
+    @abstractmethod
+    async def prune_hvac_usage_segments(self, older_than: datetime) -> int:
+        """Delete ended HVAC usage segments older than the cutoff."""
         pass
 
     # Entry key operations

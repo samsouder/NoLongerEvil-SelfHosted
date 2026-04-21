@@ -3,7 +3,7 @@
 import asyncio
 import json
 import time
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from aiohttp import web
@@ -17,6 +17,7 @@ from nolongerevil.services.device_availability import DeviceAvailability
 from nolongerevil.services.device_state_service import DeviceStateService
 from nolongerevil.services.sqlmodel_service import SQLModelService
 from nolongerevil.services.subscription_manager import SubscriptionManager
+from nolongerevil.services.usage_history_service import DEFAULT_HISTORY_DAYS, UsageHistoryService
 
 logger = get_logger(__name__)
 
@@ -230,6 +231,39 @@ async def handle_schedule(request: web.Request) -> web.Response:
             "object_timestamp": schedule_obj.object_timestamp,
         }
     )
+
+
+async def handle_usage_history(request: web.Request) -> web.Response:
+    """Handle GET /api/usage-history - get usage history for a device."""
+    serial = request.query.get("serial")
+    if not serial:
+        return web.json_response({"error": "Serial parameter required"}, status=400)
+
+    raw_days = request.query.get("days")
+    try:
+        days = int(raw_days) if raw_days is not None else DEFAULT_HISTORY_DAYS
+    except ValueError:
+        return web.json_response({"error": "days must be an integer"}, status=400)
+
+    if days < 1 or days > 90:
+        return web.json_response({"error": "days must be between 1 and 90"}, status=400)
+
+    raw_date = request.query.get("date")
+    try:
+        selected_date = date.fromisoformat(raw_date) if raw_date else None
+    except ValueError:
+        return web.json_response({"error": "date must be YYYY-MM-DD"}, status=400)
+
+    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    if usage_history_service is None:
+        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+
+    history = await usage_history_service.get_usage_history(
+        serial,
+        days=days,
+        selected_date=selected_date,
+    )
+    return web.json_response(history)
 
 
 async def handle_notify_device(request: web.Request) -> web.Response:
@@ -498,6 +532,7 @@ def create_status_routes(
     app.router.add_get("/api/config", handle_config)
     app.router.add_get("/api/devices", handle_devices)
     app.router.add_get("/api/schedule", handle_schedule)
+    app.router.add_get("/api/usage-history", handle_usage_history)
     app.router.add_get("/api/events", handle_sse)
     app.router.add_post("/notify-device", handle_notify_device)
     app.router.add_get("/api/stats", handle_stats)

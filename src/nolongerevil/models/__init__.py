@@ -4,7 +4,12 @@ from sqlmodel import SQLModel
 
 # Import all models to ensure they're registered with SQLModel metadata
 from nolongerevil.models.auth import APIKeyModel  # noqa: F401
-from nolongerevil.models.device import DeviceObjectModel, LogModel, SessionModel  # noqa: F401
+from nolongerevil.models.device import (  # noqa: F401
+    DeviceObjectModel,
+    HvacUsageSegmentModel,
+    LogModel,
+    SessionModel,
+)
 from nolongerevil.models.integration import IntegrationConfigModel, WeatherDataModel  # noqa: F401
 from nolongerevil.models.sharing import DeviceShareInviteModel, DeviceShareModel  # noqa: F401
 from nolongerevil.models.user import DeviceOwnerModel, EntryKeyModel, UserInfoModel  # noqa: F401
@@ -15,6 +20,7 @@ __all__ = [
     "DeviceObjectModel",
     "SessionModel",
     "LogModel",
+    "HvacUsageSegmentModel",
     # User models
     "UserInfoModel",
     "EntryKeyModel",
