@@ -1217,6 +1217,16 @@
       }
     }
 
+    async function refreshOpenUsageHistory() {
+      const openSerials = Object.keys(usageHistoryCache).filter(function(serial) {
+        const cache = usageHistoryCache[serial];
+        return !!(cache && cache.open && !cache.loading);
+      });
+      await Promise.all(openSerials.map(function(serial) {
+        return loadUsageHistory(serial, { silent: true });
+      }));
+    }
+
     function toggleUsageHistory(serial) {
       const cache = usageHistoryCache[serial] || {};
       cache.open = !cache.open;
@@ -1957,6 +1967,7 @@
         const data = await r.json();
         Object.keys(pendingTargets).forEach(k => delete pendingTargets[k]);
         renderDevices(data.devices || []);
+        await refreshOpenUsageHistory();
       } catch (err) {
         document.getElementById('deviceList').innerHTML =
           '<div class="setup-card"><p class="msg-error">Error loading devices: ' + esc(err.message) + '</p></div>';
