@@ -56,7 +56,6 @@ class Settings(BaseSettings):
         default=600000,
         description="Weather cache duration in milliseconds",
     )
-
     # Subscription configuration
     max_subscriptions_per_device: int = Field(
         default=100,

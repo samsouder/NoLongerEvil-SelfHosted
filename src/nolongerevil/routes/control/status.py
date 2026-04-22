@@ -253,6 +253,7 @@ async def handle_usage_history(request: web.Request) -> web.Response:
         selected_date = date.fromisoformat(raw_date) if raw_date else None
     except ValueError:
         return web.json_response({"error": "date must be YYYY-MM-DD"}, status=400)
+    timezone_name = request.query.get("tz")
 
     usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
     if usage_history_service is None:
@@ -262,6 +263,7 @@ async def handle_usage_history(request: web.Request) -> web.Response:
         serial,
         days=days,
         selected_date=selected_date,
+        timezone_name=timezone_name,
     )
     return web.json_response(history)
 

@@ -2,10 +2,10 @@
 
 import asyncio
 import contextlib
-import time
 from datetime import date, datetime, timedelta
 from datetime import time as dt_time
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from nolongerevil.lib.logger import get_logger
 from nolongerevil.lib.types import DeviceStateChange, HvacUsageSegment, HvacUsageState
@@ -96,6 +96,7 @@ class UsageHistoryService:
         serial: str,
         days: int = DEFAULT_HISTORY_DAYS,
         selected_date: date | None = None,
+        timezone_name: str | None = None,
     ) -> dict[str, Any]:
         """Get summarized usage history and a selected-day timeline."""
         if days < 1:
@@ -103,12 +104,13 @@ class UsageHistoryService:
         if days > MAX_HISTORY_DAYS:
             days = MAX_HISTORY_DAYS
 
-        today = datetime.now().date()
+        resolved_timezone_name, timezone = self._resolve_timezone(timezone_name)
+        today = self._now(timezone).date()
         timeline_date = selected_date or today
-        today_start = self._day_start(today - timedelta(days=days - 1))
-        today_end = self._day_start(today + timedelta(days=1))
-        timeline_start = self._day_start(timeline_date)
-        timeline_end = self._day_start(timeline_date + timedelta(days=1))
+        today_start = self._day_start(today - timedelta(days=days - 1), timezone)
+        today_end = self._day_start(today + timedelta(days=1), timezone)
+        timeline_start = self._day_start(timeline_date, timezone)
+        timeline_end = self._day_start(timeline_date + timedelta(days=1), timezone)
 
         range_start = min(today_start, timeline_start)
         range_end = max(today_end, timeline_end)
@@ -116,11 +118,11 @@ class UsageHistoryService:
 
         return {
             "serial": serial,
-            "timezone": self._timezone_name(),
-            "days": self._build_day_summaries(segments, today, days),
+            "timezone": resolved_timezone_name,
+            "days": self._build_day_summaries(segments, today, days, timezone),
             "timeline": {
                 "date": timeline_date.isoformat(),
-                "segments": self._build_timeline(segments, timeline_start, timeline_end),
+                "segments": self._build_timeline(segments, timeline_start, timeline_end, timezone),
             },
         }
 
@@ -212,6 +214,7 @@ class UsageHistoryService:
         segments: list[HvacUsageSegment],
         today: date,
         days: int,
+        timezone: Any,
     ) -> list[dict[str, Any]]:
         summary_by_date: dict[str, dict[str, Any]] = {}
         ordered_dates: list[date] = []
@@ -228,14 +231,15 @@ class UsageHistoryService:
                 "fan_seconds": 0,
             }
 
-        now = datetime.now()
+        now = self._now(timezone)
         for segment in segments:
-            effective_end = segment.ended_at or now
-            cursor = segment.started_at
+            start_at = self._as_usage_timezone(segment.started_at, timezone)
+            effective_end = self._as_usage_timezone(segment.ended_at or now, timezone)
+            cursor = start_at
             while cursor < effective_end:
-                day_start = self._day_start(cursor.date())
+                day_start = self._day_start(cursor.date(), timezone)
                 day_end = day_start + timedelta(days=1)
-                overlap_start = max(segment.started_at, day_start)
+                overlap_start = max(start_at, day_start)
                 overlap_end = min(effective_end, day_end)
                 seconds = max(0, int((overlap_end - overlap_start).total_seconds()))
                 key = day_start.date().isoformat()
@@ -250,12 +254,13 @@ class UsageHistoryService:
         segments: list[HvacUsageSegment],
         timeline_start: datetime,
         timeline_end: datetime,
+        timezone: Any,
     ) -> list[dict[str, Any]]:
-        now = datetime.now()
+        now = self._now(timezone)
         timeline = []
         for segment in segments:
-            effective_end = segment.ended_at or now
-            start_at = max(segment.started_at, timeline_start)
+            effective_end = self._as_usage_timezone(segment.ended_at or now, timezone)
+            start_at = max(self._as_usage_timezone(segment.started_at, timezone), timeline_start)
             end_at = min(effective_end, timeline_end)
             duration_seconds = max(0, int((end_at - start_at).total_seconds()))
             if duration_seconds <= 0:
@@ -272,12 +277,27 @@ class UsageHistoryService:
         return timeline
 
     @staticmethod
-    def _day_start(day: date) -> datetime:
-        return datetime.combine(day, dt_time.min)
+    def _day_start(day: date, timezone: Any) -> datetime:
+        return datetime.combine(day, dt_time.min, tzinfo=timezone)
 
     @staticmethod
-    def _timezone_name() -> str:
-        now = time.localtime()
-        index = 1 if now.tm_isdst > 0 and len(time.tzname) > 1 else 0
-        name = time.tzname[index] if time.tzname else ""
-        return name or "local"
+    def _now(timezone: Any) -> datetime:
+        return datetime.now(timezone)
+
+    @staticmethod
+    def _as_usage_timezone(timestamp: datetime, timezone: Any) -> datetime:
+        return datetime.fromtimestamp(timestamp.timestamp(), timezone)
+
+    @staticmethod
+    def _resolve_timezone(timezone_name: str | None) -> tuple[str, Any]:
+        if timezone_name:
+            try:
+                timezone = ZoneInfo(timezone_name)
+                return timezone_name, timezone
+            except ZoneInfoNotFoundError:
+                logger.warning(
+                    f"Unknown usage history timezone '{timezone_name}', falling back to UTC"
+                )
+
+        fallback = ZoneInfo("UTC")
+        return "UTC", fallback

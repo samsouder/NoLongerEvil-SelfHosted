@@ -461,6 +461,37 @@
       display: grid; gap: 4px;
       margin-bottom: 12px;
     }
+    .history-daily-totals {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .history-total-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      padding: 8px 10px;
+      min-width: 0;
+    }
+    .history-total-label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+    }
+    .history-total-value {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .history-summary-head,
     .history-day-row {
       display: grid;
@@ -508,6 +539,11 @@
       font-size: 11px; font-weight: 650; color: var(--text2);
     }
     .history-cell.zero { color: var(--text3); opacity: 0.7; }
+    .history-summary-empty {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 4px 2px 0;
+    }
     .history-timeline-card {
       border-top: 1px solid var(--border);
       padding-top: 10px;
@@ -566,6 +602,11 @@
     .history-empty {
       font-size: 12px; color: var(--text3);
       padding: 6px 2px 2px;
+    }
+    @media (max-width: 720px) {
+      .history-daily-totals {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
     .sched-grid { margin-bottom: 4px; }
     .sched-row {
@@ -898,6 +939,13 @@
       const d = new Date();
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+    function browserTimeZone() {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      } catch (e) {
+        return '';
+      }
+    }
     function fmtDurationShort(seconds) {
       if (!seconds) return '0m';
       const hours = Math.floor(seconds / 3600);
@@ -907,9 +955,47 @@
       if (minutes) return minutes + 'm';
       return '<1m';
     }
-    function fmtTimeOfDay(iso) {
+    function resolveHistoryTimeZone(timezone) {
+      if (!timezone) return undefined;
       try {
-        return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        new Intl.DateTimeFormat([], { timeZone: timezone }).format(new Date());
+        return timezone;
+      } catch (e) {
+        return undefined;
+      }
+    }
+    function getZonedTimeParts(iso, timezone) {
+      const options = {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      };
+      const resolvedTimeZone = resolveHistoryTimeZone(timezone);
+      if (resolvedTimeZone) options.timeZone = resolvedTimeZone;
+      const formatter = new Intl.DateTimeFormat([], options);
+      const parts = formatter.formatToParts(new Date(iso));
+      const out = { hour: 0, minute: 0, second: 0 };
+      parts.forEach(function(part) {
+        if (part.type === 'hour' || part.type === 'minute' || part.type === 'second') {
+          out[part.type] = parseInt(part.value, 10) || 0;
+        }
+      });
+      return out;
+    }
+    function secondsIntoDay(iso, timezone) {
+      const parts = getZonedTimeParts(iso, timezone);
+      return (parts.hour * 3600) + (parts.minute * 60) + parts.second;
+    }
+    function fmtTimeOfDay(iso, timezone) {
+      try {
+        const options = {
+          hour: 'numeric',
+          minute: '2-digit',
+        };
+        const resolvedTimeZone = resolveHistoryTimeZone(timezone);
+        if (resolvedTimeZone) options.timeZone = resolvedTimeZone;
+        return new Intl.DateTimeFormat([], options).format(new Date(iso));
       } catch (e) {
         return iso;
       }
@@ -1071,7 +1157,9 @@
     async function loadUsageHistory(serial, options) {
       const cache = usageHistoryCache[serial] || {};
       cache.days = cache.days || 10;
-      cache.selectedDate = (options && options.selectedDate) || cache.selectedDate || todayLocalIso();
+      if (options && Object.prototype.hasOwnProperty.call(options, 'selectedDate')) {
+        cache.selectedDate = options.selectedDate;
+      }
       cache.loading = true;
       cache.error = null;
       usageHistoryCache[serial] = cache;
@@ -1080,11 +1168,28 @@
         const query = new URLSearchParams({
           serial: serial,
           days: String(cache.days),
-          date: cache.selectedDate,
         });
+        if (cache.selectedDate) query.set('date', cache.selectedDate);
+        const tz = browserTimeZone();
+        if (tz) query.set('tz', tz);
         const r = await fetch(BASE_PATH + '/api/usage-history?' + query.toString());
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'Failed to load usage history');
+        const firstDayWithUsage = (j.days || []).find(function(day) {
+          return !!(day.heat_seconds || day.aux_heat_seconds || day.ac_seconds || day.fan_seconds);
+        });
+        const timelineDate = j.timeline && j.timeline.date;
+        const selectedDay = (j.days || []).find(function(day) { return day.date === timelineDate; });
+        const selectedHasUsage = !!(
+          selectedDay && (selectedDay.heat_seconds || selectedDay.aux_heat_seconds || selectedDay.ac_seconds || selectedDay.fan_seconds)
+        );
+        if (!selectedHasUsage && firstDayWithUsage && firstDayWithUsage.date !== timelineDate) {
+          cache.loading = false;
+          usageHistoryCache[serial] = cache;
+          loadUsageHistory(serial, { selectedDate: firstDayWithUsage.date, silent: true });
+          return;
+        }
+        cache.selectedDate = timelineDate || cache.selectedDate || null;
         cache.data = j;
       } catch (e) {
         cache.error = e.message;
@@ -1099,7 +1204,6 @@
       const cache = usageHistoryCache[serial] || {};
       cache.open = !cache.open;
       cache.days = cache.days || 10;
-      cache.selectedDate = cache.selectedDate || todayLocalIso();
       usageHistoryCache[serial] = cache;
       renderDevices(lastDevices);
       if (cache.open && !cache.loading && !cache.data) loadUsageHistory(serial);
@@ -1128,35 +1232,61 @@
       const data = cache.data;
       const selectedDate = cache.selectedDate || (data.timeline && data.timeline.date) || todayLocalIso();
       const days = data.days || [];
+      const visibleDays = days.filter(function(day) {
+        return !!(day.heat_seconds || day.aux_heat_seconds || day.ac_seconds || day.fan_seconds);
+      });
+      const selectedDay = days.find(function(day) { return day.date === selectedDate; }) || null;
       const timeline = (data.timeline && data.timeline.segments) || [];
-      const laneLabels = { heat: 'Heat', ac: 'AC', aux_heat: 'Aux Heat', fan: 'Fan' };
-      const summaryHead = '<div class="history-summary-head"><span>Day</span><span>Heat</span><span>AC</span><span>Aux</span><span>Fan</span></div>';
-      const summaryRows = days.map(function(day) {
+      const stateOrder = ['heat', 'aux_heat', 'ac', 'fan'];
+      const laneLabels = { heat: 'Heat', aux_heat: 'Aux Heat', ac: 'AC', fan: 'Fan' };
+      const stateFields = {
+        heat: 'heat_seconds',
+        aux_heat: 'aux_heat_seconds',
+        ac: 'ac_seconds',
+        fan: 'fan_seconds',
+      };
+      const dailyTotals = selectedDay || {
+        heat_seconds: 0,
+        aux_heat_seconds: 0,
+        ac_seconds: 0,
+        fan_seconds: 0,
+      };
+      const dailyCards = stateOrder.map(function(state) {
+        const field = stateFields[state];
+        return '<div class="history-total-card">' +
+          '<span class="history-total-label">' + esc(laneLabels[state]) + '</span>' +
+          '<span class="history-total-value">' + esc(fmtDurationShort(dailyTotals[field])) + '</span>' +
+        '</div>';
+      }).join('');
+      const summaryHead = '<div class="history-summary-head"><span>Day</span><span>Heat</span><span>Aux</span><span>AC</span><span>Fan</span></div>';
+      const summaryRows = visibleDays.map(function(day) {
         const label = fmtDayLabel(day.date);
         const active = day.date === selectedDate ? ' active' : '';
         return '<button class="history-day-row' + active + '" onclick="selectUsageHistoryDate(\'' + serial + '\',\'' + day.date + '\')">' +
           '<span class="history-day-label"><span class="history-day-title">' + esc(label.title) + '</span><span class="history-day-date">' + esc(label.date) + '</span></span>' +
           '<span class="history-cell' + (day.heat_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.heat_seconds)) + '</span>' +
-          '<span class="history-cell' + (day.ac_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.ac_seconds)) + '</span>' +
           '<span class="history-cell' + (day.aux_heat_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.aux_heat_seconds)) + '</span>' +
+          '<span class="history-cell' + (day.ac_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.ac_seconds)) + '</span>' +
           '<span class="history-cell' + (day.fan_seconds ? '' : ' zero') + '">' + esc(fmtDurationShort(day.fan_seconds)) + '</span>' +
         '</button>';
       }).join('');
+      const summaryBody = visibleDays.length
+        ? summaryHead + summaryRows
+        : '<div class="history-summary-empty">No tracked runtime in the last ' + esc(cache.days) + ' days.</div>';
 
-      const axis = ['12a', '6a', '12p', '6p', '12a'].map(function(label, idx) {
+      const axis = [0, 21600, 43200, 64800, 86400].map(function(seconds, idx) {
         const align = idx === 0 ? ' style="text-align:left"' : idx === 4 ? ' style="text-align:right"' : '';
+        const label = idx === 4 ? secsToTime(0) : secsToTime(seconds);
         return '<span class="history-axis-label"' + align + '>' + label + '</span>';
       }).join('');
 
-      const lanes = ['heat', 'ac', 'aux_heat', 'fan'].map(function(state) {
+      const lanes = stateOrder.map(function(state) {
         const bars = timeline.filter(function(segment) { return segment.state === state; }).map(function(segment) {
-          const start = new Date(segment.started_at);
-          const end = new Date(segment.ended_at);
-          const startSeconds = (start.getHours() * 3600) + (start.getMinutes() * 60) + start.getSeconds();
-          const endSeconds = (end.getHours() * 3600) + (end.getMinutes() * 60) + end.getSeconds();
+          const startSeconds = secondsIntoDay(segment.started_at, data.timezone || undefined);
+          const endSeconds = secondsIntoDay(segment.ended_at, data.timezone || undefined);
           const left = (startSeconds / 86400) * 100;
           const width = Math.max(((endSeconds - startSeconds) / 86400) * 100, 0.35);
-          const title = laneLabels[state] + ': ' + fmtTimeOfDay(segment.started_at) + ' - ' + fmtTimeOfDay(segment.ended_at) + ' (' + fmtDurationShort(segment.duration_seconds) + ')';
+          const title = laneLabels[state] + ': ' + fmtTimeOfDay(segment.started_at, data.timezone || undefined) + ' - ' + fmtTimeOfDay(segment.ended_at, data.timezone || undefined) + ' (' + fmtDurationShort(segment.duration_seconds) + ')';
           return '<span class="history-bar ' + state + '" style="left:' + left + '%;width:' + width + '%" title="' + esc(title) + '"></span>';
         }).join('');
         const grid = [25, 50, 75].map(function(pct) {
@@ -1175,7 +1305,8 @@
 
       return '<div class="history-section open"><div class="history-panel">' +
         '<div class="history-meta"><span>Last ' + esc(cache.days) + ' days</span><span>' + esc(data.timezone || 'local') + '</span></div>' +
-        '<div class="history-summary">' + summaryHead + summaryRows + '</div>' +
+        '<div class="history-daily-totals">' + dailyCards + '</div>' +
+        '<div class="history-summary">' + summaryBody + '</div>' +
         '<div class="history-timeline-card">' +
           '<div class="history-timeline-head"><span class="history-timeline-title">Timeline for ' + esc(selectedLabel.title + ' ' + selectedLabel.date).trim() + '</span><span style="font-size:11px;color:var(--text3)">Fan overlaps heat/cool when the blower is running</span></div>' +
           '<div class="history-axis">' + axis + '</div>' +
