@@ -603,6 +603,23 @@
       font-size: 12px; color: var(--text3);
       padding: 6px 2px 2px;
     }
+    @media (max-width: 520px) {
+      .card-row-climate {
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .target-range {
+        display: grid;
+        justify-items: end;
+        gap: 8px;
+      }
+      .target-range .range-group {
+        justify-content: flex-end;
+      }
+      .target-range .range-sep {
+        display: none;
+      }
+    }
     @media (max-width: 720px) {
       .history-daily-totals {
         grid-template-columns: repeat(2, minmax(0, 1fr));
