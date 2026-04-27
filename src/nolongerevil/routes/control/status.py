@@ -17,7 +17,11 @@ from nolongerevil.services.device_availability import DeviceAvailability
 from nolongerevil.services.device_state_service import DeviceStateService
 from nolongerevil.services.sqlmodel_service import SQLModelService
 from nolongerevil.services.subscription_manager import SubscriptionManager
-from nolongerevil.services.usage_history_service import DEFAULT_HISTORY_DAYS, UsageHistoryService
+from nolongerevil.services.usage_history_service import (
+    DEFAULT_HISTORY_DAYS,
+    MAX_HISTORY_DAYS,
+    UsageHistoryService,
+)
 
 logger = get_logger(__name__)
 
@@ -245,8 +249,10 @@ async def handle_usage_history(request: web.Request) -> web.Response:
     except ValueError:
         return web.json_response({"error": "days must be an integer"}, status=400)
 
-    if days < 1 or days > 90:
-        return web.json_response({"error": "days must be between 1 and 90"}, status=400)
+    if days < 1 or days > MAX_HISTORY_DAYS:
+        return web.json_response(
+            {"error": f"days must be between 1 and {MAX_HISTORY_DAYS}"}, status=400
+        )
 
     raw_date = request.query.get("date")
     try:

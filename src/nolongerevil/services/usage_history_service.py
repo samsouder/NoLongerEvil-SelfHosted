@@ -27,11 +27,11 @@ class UsageHistoryService:
         self,
         storage: AbstractDeviceStateManager,
         state_service: DeviceStateService,
-        retention_days: int = MAX_HISTORY_DAYS,
+        retention_days: int | None = None,
     ) -> None:
         self._storage = storage
         self._state_service = state_service
-        self._retention_days = retention_days
+        self._retention_days = retention_days if retention_days and retention_days > 0 else None
         self._active_segments: dict[str, dict[HvacUsageState, int]] = {}
         self._lock = asyncio.Lock()
         self._prune_task: asyncio.Task[None] | None = None
@@ -48,15 +48,17 @@ class UsageHistoryService:
             if closed:
                 logger.info(f"Closed {closed} stale HVAC usage segment(s)")
 
-            pruned = await self._prune_old_segments()
-            if pruned:
-                logger.info(f"Pruned {pruned} expired HVAC usage segment(s)")
+            if self._retention_days is not None:
+                pruned = await self._prune_old_segments()
+                if pruned:
+                    logger.info(f"Pruned {pruned} expired HVAC usage segment(s)")
 
             startup_time = datetime.now()
             for serial in self._state_service.get_all_serials():
                 await self._sync_serial(serial, startup_time)
 
-        self._prune_task = asyncio.create_task(self._prune_loop())
+        if self._retention_days is not None:
+            self._prune_task = asyncio.create_task(self._prune_loop())
 
     async def close(self) -> None:
         """Close all active segments and stop background work."""
@@ -206,6 +208,9 @@ class UsageHistoryService:
                 logger.error(f"Failed to prune HVAC usage history: {exc}")
 
     async def _prune_old_segments(self) -> int:
+        if self._retention_days is None:
+            return 0
+
         cutoff = datetime.now() - timedelta(days=self._retention_days)
         return await self._storage.prune_hvac_usage_segments(cutoff)
 
