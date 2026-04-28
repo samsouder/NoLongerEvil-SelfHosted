@@ -526,17 +526,17 @@
           </button>
           <button
             class="range-btn"
-            data-range="week"
-            onclick="setRange('week')"
-          >
-            Week
-          </button>
-          <button
-            class="range-btn"
             data-range="month"
             onclick="setRange('month')"
           >
             Month
+          </button>
+          <button
+            class="range-btn"
+            data-range="week"
+            onclick="setRange('week')"
+          >
+            Week
           </button>
           <button
             class="range-btn"
@@ -756,10 +756,10 @@
         });
         document.getElementById("yearControl").style.display =
           activeRange === "year" ? "grid" : "none";
-        document.getElementById("weekControl").style.display =
-          activeRange === "week" ? "grid" : "none";
         document.getElementById("monthControl").style.display =
           activeRange === "month" ? "grid" : "none";
+        document.getElementById("weekControl").style.display =
+          activeRange === "week" ? "grid" : "none";
         document.getElementById("customControl").style.display =
           activeRange === "custom" ? "grid" : "none";
       }
@@ -780,13 +780,13 @@
               "start",
               document.getElementById("yearInput").value + "-01-01",
             );
-          if (activeRange === "week")
-            query.set("start", document.getElementById("weekInput").value);
           if (activeRange === "month")
             query.set(
               "start",
               document.getElementById("monthInput").value + "-01",
             );
+          if (activeRange === "week")
+            query.set("start", document.getElementById("weekInput").value);
           if (activeRange === "custom") {
             query.set("start", document.getElementById("startInput").value);
             query.set("end", document.getElementById("endInput").value);
