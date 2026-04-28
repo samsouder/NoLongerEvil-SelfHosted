@@ -1,706 +1,1326 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Usage History - No Longer Evil</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
-  <link rel="icon" type="image/png" href="/nle-favicon.png">
-  <style>
-    :root {
-      --accent: #0EA5E9;
-      --accent-hover: #0284C7;
-      --accent-text: #ffffff;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #0f172a;
-      --text2: #475569;
-      --text3: #94a3b8;
-      --border: #e2e8f0;
-      --hover: #f1f5f9;
-      --heat: #f59e0b;
-      --aux: #f97316;
-      --ac: #3b82f6;
-      --fan: #22c55e;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      --radius: 12px;
-    }
-    @media (prefers-color-scheme: dark) {
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usage History - No Longer Evil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css"
+    />
+    <link rel="icon" type="image/png" href="/nle-favicon.png" />
+    <style>
       :root {
-        --accent: #38BDF8;
-        --accent-hover: #0EA5E9;
-        --accent-text: #0f172a;
-        --bg: #0f172a;
-        --card: #1e293b;
-        --text: #f1f5f9;
-        --text2: #94a3b8;
-        --text3: #64748b;
-        --border: #334155;
-        --hover: #243449;
-        --shadow: 0 1px 3px rgba(0,0,0,0.3);
+        --accent: #0ea5e9;
+        --accent-hover: #0284c7;
+        --accent-text: #ffffff;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --text2: #475569;
+        --text3: #94a3b8;
+        --border: #e2e8f0;
+        --hover: #f1f5f9;
+        --heat: #f59e0b;
+        --aux: #f97316;
+        --ac: #3b82f6;
+        --fan: #22c55e;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --radius: 12px;
       }
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 24px 16px 36px;
-      -webkit-font-smoothing: antialiased;
-    }
-    .header {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin-bottom: 18px;
-    }
-    .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .header h1 { font-size: 22px; font-weight: 700; }
-    .header-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
-    .btn-icon, .btn {
-      border: 1px solid var(--border); border-radius: 8px;
-      background: var(--card); color: var(--text2);
-      cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-      transition: all 0.15s; font: inherit;
-    }
-    .btn-icon { width: 36px; height: 36px; justify-content: center; font-size: 18px; }
-    .btn { padding: 8px 11px; font-size: 13px; font-weight: 600; }
-    .btn:hover, .btn-icon:hover { background: var(--hover); color: var(--text); }
-    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-    .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-    .controls {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 14px; margin-bottom: 14px;
-      display: grid; grid-template-columns: 1.3fr 1fr auto;
-      gap: 12px; align-items: end;
-    }
-    .control-group { display: grid; gap: 6px; min-width: 0; }
-    .control-label {
-      font-size: 10px; font-weight: 700; color: var(--text3);
-      text-transform: uppercase; letter-spacing: 0.4px;
-    }
-    select, input {
-      width: 100%; min-height: 36px;
-      border: 1px solid var(--border); border-radius: 8px;
-      background: var(--bg); color: var(--text);
-      padding: 7px 9px; font: inherit; font-size: 13px;
-    }
-    .range-row { display: flex; flex-wrap: wrap; gap: 6px; }
-    .range-btn {
-      border: 1px solid var(--border); border-radius: 8px;
-      background: var(--bg); color: var(--text2);
-      padding: 8px 10px; cursor: pointer; font-size: 12px; font-weight: 650;
-    }
-    .range-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
-    .date-controls {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px; margin-bottom: 14px;
-    }
-    .panel {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 14px; min-width: 0;
-    }
-    .panel-title {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; margin-bottom: 12px;
-    }
-    .panel-title h2 {
-      font-size: 13px; font-weight: 700; color: var(--text2);
-      text-transform: uppercase; letter-spacing: 0.4px;
-    }
-    .muted { color: var(--text3); font-size: 12px; }
-    .message {
-      display: none; margin-bottom: 14px; padding: 10px 12px;
-      border-radius: 8px; border: 1px solid var(--border);
-      color: var(--text2); background: var(--card); font-size: 13px;
-    }
-    .message.open { display: block; }
-    .message.err { border-color: rgba(220,38,38,0.35); color: #dc2626; }
-    .summary-grid {
-      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px; margin-bottom: 14px;
-    }
-    .metric-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 13px; min-width: 0;
-    }
-    .metric-label {
-      color: var(--text3); font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px;
-    }
-    .metric-value { font-size: 24px; font-weight: 750; letter-spacing: -0.5px; }
-    .metric-note { color: var(--text3); font-size: 11px; margin-top: 4px; }
-    .state-grid {
-      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px; margin-bottom: 14px;
-    }
-    .state-card { border-left: 4px solid var(--border); }
-    .state-card.heat { border-left-color: var(--heat); }
-    .state-card.aux_heat { border-left-color: var(--aux); }
-    .state-card.ac { border-left-color: var(--ac); }
-    .state-card.fan { border-left-color: var(--fan); }
-    .main-grid {
-      display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
-      gap: 14px; align-items: start;
-    }
-    .trend-list { display: grid; gap: 8px; }
-    .trend-row {
-      display: grid; grid-template-columns: 92px minmax(0, 1fr) 72px;
-      gap: 10px; align-items: center;
-    }
-    .trend-label {
-      font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--text3);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .stack-track {
-      height: 18px; border-radius: 999px; overflow: hidden;
-      background: rgba(148,163,184,0.15); display: flex;
-    }
-    .seg { height: 100%; min-width: 0; }
-    .seg.heat { background: var(--heat); }
-    .seg.aux_heat { background: var(--aux); }
-    .seg.ac { background: var(--ac); }
-    .seg.fan { background: var(--fan); }
-    .trend-total { font-size: 11px; font-weight: 650; color: var(--text2); text-align: right; }
-    .calendar-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
-      gap: 4px;
-    }
-    .day-cell {
-      aspect-ratio: 1; border-radius: 3px;
-      background: rgba(148,163,184,0.14);
-      border: 1px solid rgba(148,163,184,0.10);
-      cursor: pointer;
-    }
-    .day-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .peak-list, .warning-list, .context-list { display: grid; gap: 8px; }
-    .list-row {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; border-bottom: 1px solid var(--border);
-      padding: 0 0 8px; font-size: 13px;
-    }
-    .list-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .link-row { cursor: pointer; color: var(--text2); }
-    .link-row:hover { color: var(--accent); }
-    .timeline-controls {
-      display: flex; align-items: end; justify-content: space-between;
-      gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
-    }
-    .timeline-date { max-width: 180px; }
-    .lane { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .lane-label { width: 64px; text-align: right; font-size: 11px; font-weight: 700; color: var(--text2); }
-    .lane-track {
-      position: relative; flex: 1; height: 22px; border-radius: 999px;
-      background: rgba(148,163,184,0.14); overflow: hidden;
-    }
-    .lane-bar {
-      position: absolute; top: 3px; bottom: 3px; border-radius: 999px; min-width: 2px;
-    }
-    .lane-bar.heat { background: var(--heat); }
-    .lane-bar.aux_heat { background: var(--aux); }
-    .lane-bar.ac { background: var(--ac); }
-    .lane-bar.fan { background: var(--fan); }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
-    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-    th { color: var(--text3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
-    .empty { color: var(--text3); font-size: 13px; padding: 8px 0; }
-    @media (max-width: 900px) {
-      .controls, .main-grid { grid-template-columns: 1fr; }
-      .summary-grid, .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .date-controls { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 560px) {
-      body { padding: 18px 12px 30px; }
-      .summary-grid, .state-grid { grid-template-columns: 1fr; }
-      .trend-row { grid-template-columns: 72px minmax(0, 1fr); }
-      .trend-total { grid-column: 2; text-align: left; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="header-left">
-      <button class="btn-icon" onclick="goHome()" title="Back to dashboard"><i class="mdi mdi-arrow-left"></i></button>
-      <div>
-        <h1>Usage History</h1>
-        <div class="header-sub" id="rangeSubtitle">Loading devices...</div>
-      </div>
-    </div>
-    <button class="btn" onclick="loadDashboard()" title="Refresh"><i class="mdi mdi-refresh"></i> Refresh</button>
-  </div>
-
-  <div class="controls">
-    <div class="control-group">
-      <label class="control-label" for="deviceSelect">Device</label>
-      <select id="deviceSelect" onchange="loadDashboard()"></select>
-    </div>
-    <div class="control-group">
-      <span class="control-label">Range</span>
-      <div class="range-row">
-        <button class="range-btn active" data-range="all" onclick="setRange('all')">All time</button>
-        <button class="range-btn" data-range="year" onclick="setRange('year')">Year</button>
-        <button class="range-btn" data-range="month" onclick="setRange('month')">Month</button>
-        <button class="range-btn" data-range="custom" onclick="setRange('custom')">Custom</button>
-      </div>
-    </div>
-    <button class="btn primary" onclick="exportCsv()"><i class="mdi mdi-download"></i> CSV</button>
-  </div>
-
-  <div class="date-controls">
-    <div class="control-group" id="yearControl">
-      <label class="control-label" for="yearInput">Year</label>
-      <input id="yearInput" type="number" min="2000" max="2100" onchange="loadDashboard()">
-    </div>
-    <div class="control-group" id="monthControl">
-      <label class="control-label" for="monthInput">Month</label>
-      <input id="monthInput" type="month" onchange="loadDashboard()">
-    </div>
-    <div class="control-group" id="customControl">
-      <label class="control-label" for="startInput">Custom dates</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <input id="startInput" type="date" onchange="loadDashboard()">
-        <input id="endInput" type="date" onchange="loadDashboard()">
-      </div>
-    </div>
-  </div>
-
-  <div id="message" class="message"></div>
-  <div id="summaryGrid" class="summary-grid"></div>
-  <div id="stateGrid" class="state-grid"></div>
-
-  <div class="main-grid">
-    <div style="display:grid;gap:14px">
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Trend</h2>
-          <select id="bucketSelect" style="max-width:140px" onchange="loadDashboard()">
-            <option value="auto">Auto bucket</option>
-            <option value="daily">Daily</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </div>
-        <div id="trendList" class="trend-list"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Calendar Heatmap</h2>
-          <span class="muted" id="calendarHint"></span>
-        </div>
-        <div id="calendarGrid" class="calendar-grid"></div>
-      </section>
-
-      <section class="panel">
-        <div class="timeline-controls">
-          <div class="panel-title" style="margin:0">
-            <h2>Selected Day Timeline</h2>
-          </div>
-          <div class="control-group timeline-date">
-            <label class="control-label" for="timelineDate">Date</label>
-            <input id="timelineDate" type="date" onchange="loadTimeline(this.value)">
-          </div>
-        </div>
-        <div id="timelinePanel"></div>
-      </section>
-    </div>
-
-    <div style="display:grid;gap:14px">
-      <section class="panel">
-        <div class="panel-title"><h2>Peak Days</h2></div>
-        <div id="peakList" class="peak-list"></div>
-      </section>
-      <section class="panel">
-        <div class="panel-title"><h2>Warnings</h2></div>
-        <div id="warningList" class="warning-list"></div>
-      </section>
-      <section class="panel">
-        <div class="panel-title"><h2>Context</h2></div>
-        <div id="contextList" class="context-list"></div>
-      </section>
-    </div>
-  </div>
-
-  <script>
-    const BASE_PATH = document.body.dataset.ingressPath || '';
-    const stateOrder = ['heat', 'aux_heat', 'ac', 'fan'];
-    const stateLabels = { heat: 'Heat', aux_heat: 'Aux Heat', ac: 'AC', fan: 'Fan' };
-    const stateFields = {
-      heat: 'heat_seconds',
-      aux_heat: 'aux_heat_seconds',
-      ac: 'ac_seconds',
-      fan: 'fan_seconds',
-    };
-    let activeRange = 'all';
-    let devices = [];
-    let dashboardData = null;
-    let timelineData = null;
-
-    initControls();
-    loadDevices();
-
-    function initControls() {
-      const now = new Date();
-      document.getElementById('yearInput').value = String(now.getFullYear());
-      document.getElementById('monthInput').value = now.toISOString().slice(0, 7);
-      document.getElementById('startInput').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      document.getElementById('endInput').value = todayLocalIso();
-      updateRangeControls();
-    }
-
-    function goHome() {
-      window.location.href = BASE_PATH + '/';
-    }
-
-    function browserTimeZone() {
-      try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
-      catch (e) { return 'UTC'; }
-    }
-
-    async function loadDevices() {
-      showMessage('Loading devices...');
-      try {
-        const response = await fetch(BASE_PATH + '/api/devices');
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to load devices');
-        devices = data.devices || [];
-        const select = document.getElementById('deviceSelect');
-        const requestedSerial = new URLSearchParams(window.location.search).get('serial');
-        select.innerHTML = devices.map(function(device) {
-          const label = (device.name || device.serial) + ' - ' + device.serial;
-          return '<option value="' + esc(device.serial) + '">' + esc(label) + '</option>';
-        }).join('');
-        if (requestedSerial && devices.some(function(device) { return device.serial === requestedSerial; })) {
-          select.value = requestedSerial;
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --accent: #38bdf8;
+          --accent-hover: #0ea5e9;
+          --accent-text: #0f172a;
+          --bg: #0f172a;
+          --card: #1e293b;
+          --text: #f1f5f9;
+          --text2: #94a3b8;
+          --text3: #64748b;
+          --border: #334155;
+          --hover: #243449;
+          --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
-        if (!devices.length) {
-          showMessage('No registered devices found.');
-          renderEmpty();
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          "Geist",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 36px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .header h1 {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .header-sub {
+        font-size: 12px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+      .btn-icon,
+      .btn {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--text2);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+        font: inherit;
+      }
+      .btn-icon {
+        width: 36px;
+        height: 36px;
+        justify-content: center;
+        font-size: 18px;
+      }
+      .btn {
+        padding: 8px 11px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .btn:hover,
+      .btn-icon:hover {
+        background: var(--hover);
+        color: var(--text);
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-text);
+      }
+      .btn.primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+      .controls {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        margin-bottom: 14px;
+        display: grid;
+        grid-template-columns: 1.3fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+      }
+      .control-group {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+      .control-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      select,
+      input {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        padding: 7px 9px;
+        font: inherit;
+        font-size: 13px;
+      }
+      .range-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .range-btn {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text2);
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .range-btn.active {
+        background: var(--text);
+        color: var(--bg);
+        border-color: var(--text);
+      }
+      .date-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        min-width: 0;
+      }
+      .panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .panel-title h2 {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text2);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .muted {
+        color: var(--text3);
+        font-size: 12px;
+      }
+      .message {
+        display: none;
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        color: var(--text2);
+        background: var(--card);
+        font-size: 13px;
+      }
+      .message.open {
+        display: block;
+      }
+      .message.err {
+        border-color: rgba(220, 38, 38, 0.35);
+        color: #dc2626;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .metric-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 13px;
+        min-width: 0;
+      }
+      .metric-label {
+        color: var(--text3);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 7px;
+      }
+      .metric-value {
+        font-size: 24px;
+        font-weight: 750;
+        letter-spacing: -0.5px;
+      }
+      .metric-note {
+        color: var(--text3);
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .state-card {
+        border-left: 4px solid var(--border);
+      }
+      .state-card.heat {
+        border-left-color: var(--heat);
+      }
+      .state-card.aux_heat {
+        border-left-color: var(--aux);
+      }
+      .state-card.ac {
+        border-left-color: var(--ac);
+      }
+      .state-card.fan {
+        border-left-color: var(--fan);
+      }
+      .main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .trend-list {
+        display: grid;
+        gap: 8px;
+      }
+      .trend-row {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 72px;
+        gap: 10px;
+        align-items: center;
+      }
+      .trend-label {
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        color: var(--text3);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .stack-track {
+        height: 18px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(148, 163, 184, 0.15);
+        display: flex;
+      }
+      .seg {
+        height: 100%;
+        min-width: 0;
+      }
+      .seg.heat {
+        background: var(--heat);
+      }
+      .seg.aux_heat {
+        background: var(--aux);
+      }
+      .seg.ac {
+        background: var(--ac);
+      }
+      .seg.fan {
+        background: var(--fan);
+      }
+      .trend-total {
+        font-size: 11px;
+        font-weight: 650;
+        color: var(--text2);
+        text-align: right;
+      }
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
+        gap: 4px;
+      }
+      .day-cell {
+        aspect-ratio: 1;
+        border-radius: 3px;
+        background: rgba(148, 163, 184, 0.14);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        cursor: pointer;
+      }
+      .day-cell:hover {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .peak-list,
+      .warning-list,
+      .context-list {
+        display: grid;
+        gap: 8px;
+      }
+      .list-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--border);
+        padding: 0 0 8px;
+        font-size: 13px;
+      }
+      .list-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .link-row {
+        cursor: pointer;
+        color: var(--text2);
+      }
+      .link-row:hover {
+        color: var(--accent);
+      }
+      .timeline-controls {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .timeline-date {
+        max-width: 180px;
+      }
+      .lane {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .lane-label {
+        width: 64px;
+        text-align: right;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text2);
+      }
+      .lane-track {
+        position: relative;
+        flex: 1;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        overflow: hidden;
+      }
+      .lane-bar {
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        border-radius: 999px;
+        min-width: 2px;
+      }
+      .lane-bar.heat {
+        background: var(--heat);
+      }
+      .lane-bar.aux_heat {
+        background: var(--aux);
+      }
+      .lane-bar.ac {
+        background: var(--ac);
+      }
+      .lane-bar.fan {
+        background: var(--fan);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        color: var(--text3);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .empty {
+        color: var(--text3);
+        font-size: 13px;
+        padding: 8px 0;
+      }
+      @media (max-width: 900px) {
+        .controls,
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+        .summary-grid,
+        .state-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .date-controls {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        body {
+          padding: 18px 12px 30px;
+        }
+        .summary-grid,
+        .state-grid {
+          grid-template-columns: 1fr;
+        }
+        .trend-row {
+          grid-template-columns: 72px minmax(0, 1fr);
+        }
+        .trend-total {
+          grid-column: 2;
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-left">
+        <button class="btn-icon" onclick="goHome()" title="Back to dashboard">
+          <i class="mdi mdi-arrow-left"></i>
+        </button>
+        <div>
+          <h1>Usage History</h1>
+          <div class="header-sub" id="rangeSubtitle">Loading devices...</div>
+        </div>
+      </div>
+      <button class="btn" onclick="loadDashboard()" title="Refresh">
+        <i class="mdi mdi-refresh"></i> Refresh
+      </button>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label class="control-label" for="deviceSelect">Device</label>
+        <select id="deviceSelect" onchange="loadDashboard()"></select>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Range</span>
+        <div class="range-row">
+          <button
+            class="range-btn active"
+            data-range="all"
+            onclick="setRange('all')"
+          >
+            All time
+          </button>
+          <button
+            class="range-btn"
+            data-range="year"
+            onclick="setRange('year')"
+          >
+            Year
+          </button>
+          <button
+            class="range-btn"
+            data-range="week"
+            onclick="setRange('week')"
+          >
+            Week
+          </button>
+          <button
+            class="range-btn"
+            data-range="month"
+            onclick="setRange('month')"
+          >
+            Month
+          </button>
+          <button
+            class="range-btn"
+            data-range="custom"
+            onclick="setRange('custom')"
+          >
+            Custom
+          </button>
+        </div>
+      </div>
+      <button class="btn primary" onclick="exportCsv()">
+        <i class="mdi mdi-download"></i> CSV
+      </button>
+    </div>
+
+    <div class="date-controls">
+      <div class="control-group" id="yearControl">
+        <label class="control-label" for="yearInput">Year</label>
+        <input
+          id="yearInput"
+          type="number"
+          min="2000"
+          max="2100"
+          onchange="loadDashboard()"
+        />
+      </div>
+      <div class="control-group" id="monthControl">
+        <label class="control-label" for="monthInput">Month</label>
+        <input id="monthInput" type="month" onchange="loadDashboard()" />
+      </div>
+      <div class="control-group" id="weekControl">
+        <label class="control-label" for="weekInput">Week</label>
+        <input id="weekInput" type="date" onchange="loadDashboard()" />
+      </div>
+      <div class="control-group" id="customControl">
+        <label class="control-label" for="startInput">Custom dates</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+          <input id="startInput" type="date" onchange="loadDashboard()" />
+          <input id="endInput" type="date" onchange="loadDashboard()" />
+        </div>
+      </div>
+    </div>
+
+    <div id="message" class="message"></div>
+    <div id="summaryGrid" class="summary-grid"></div>
+    <div id="stateGrid" class="state-grid"></div>
+
+    <div class="main-grid">
+      <div style="display: grid; gap: 14px">
+        <section class="panel">
+          <div class="panel-title">
+            <h2>Trend</h2>
+            <select
+              id="bucketSelect"
+              style="max-width: 140px"
+              onchange="loadDashboard()"
+            >
+              <option value="auto">Auto bucket</option>
+              <option value="daily">Daily</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div id="trendList" class="trend-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h2>Calendar Heatmap</h2>
+            <span class="muted" id="calendarHint"></span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="timeline-controls">
+            <div class="panel-title" style="margin: 0">
+              <h2>Selected Day Timeline</h2>
+            </div>
+            <div class="control-group timeline-date">
+              <label class="control-label" for="timelineDate">Date</label>
+              <input
+                id="timelineDate"
+                type="date"
+                onchange="loadTimeline(this.value)"
+              />
+            </div>
+          </div>
+          <div id="timelinePanel"></div>
+        </section>
+      </div>
+
+      <div style="display: grid; gap: 14px">
+        <section class="panel">
+          <div class="panel-title"><h2>Peak Days</h2></div>
+          <div id="peakList" class="peak-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-title"><h2>Warnings</h2></div>
+          <div id="warningList" class="warning-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-title"><h2>Context</h2></div>
+          <div id="contextList" class="context-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const BASE_PATH = document.body.dataset.ingressPath || "";
+      const stateOrder = ["heat", "aux_heat", "ac", "fan"];
+      const stateLabels = {
+        heat: "Heat",
+        aux_heat: "Aux Heat",
+        ac: "AC",
+        fan: "Fan",
+      };
+      const stateFields = {
+        heat: "heat_seconds",
+        aux_heat: "aux_heat_seconds",
+        ac: "ac_seconds",
+        fan: "fan_seconds",
+      };
+      let activeRange = "all";
+      let devices = [];
+      let dashboardData = null;
+      let timelineData = null;
+
+      initControls();
+      loadDevices();
+
+      function initControls() {
+        const now = new Date();
+        document.getElementById("yearInput").value = String(now.getFullYear());
+        document.getElementById("weekInput").value = todayLocalIso();
+        document.getElementById("monthInput").value = now
+          .toISOString()
+          .slice(0, 7);
+        document.getElementById("startInput").value = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          1,
+        )
+          .toISOString()
+          .slice(0, 10);
+        document.getElementById("endInput").value = todayLocalIso();
+        updateRangeControls();
+      }
+
+      function goHome() {
+        window.location.href = BASE_PATH + "/";
+      }
+
+      function browserTimeZone() {
+        try {
+          return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        } catch (e) {
+          return "UTC";
+        }
+      }
+
+      async function loadDevices() {
+        showMessage("Loading devices...");
+        try {
+          const response = await fetch(BASE_PATH + "/api/devices");
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.error || "Failed to load devices");
+          devices = data.devices || [];
+          const select = document.getElementById("deviceSelect");
+          const requestedSerial = new URLSearchParams(
+            window.location.search,
+          ).get("serial");
+          select.innerHTML = devices
+            .map(function (device) {
+              const label =
+                (device.name || device.serial) + " - " + device.serial;
+              return (
+                '<option value="' +
+                esc(device.serial) +
+                '">' +
+                esc(label) +
+                "</option>"
+              );
+            })
+            .join("");
+          if (
+            requestedSerial &&
+            devices.some(function (device) {
+              return device.serial === requestedSerial;
+            })
+          ) {
+            select.value = requestedSerial;
+          }
+          if (!devices.length) {
+            showMessage("No registered devices found.");
+            renderEmpty();
+            return;
+          }
+          await loadDashboard();
+        } catch (error) {
+          showMessage(error.message, true);
+        }
+      }
+
+      function setRange(range) {
+        activeRange = range;
+        updateRangeControls();
+        loadDashboard();
+      }
+
+      function updateRangeControls() {
+        document.querySelectorAll(".range-btn").forEach(function (button) {
+          button.classList.toggle(
+            "active",
+            button.dataset.range === activeRange,
+          );
+        });
+        document.getElementById("yearControl").style.display =
+          activeRange === "year" ? "grid" : "none";
+        document.getElementById("weekControl").style.display =
+          activeRange === "week" ? "grid" : "none";
+        document.getElementById("monthControl").style.display =
+          activeRange === "month" ? "grid" : "none";
+        document.getElementById("customControl").style.display =
+          activeRange === "custom" ? "grid" : "none";
+      }
+
+      async function loadDashboard() {
+        const serial = document.getElementById("deviceSelect").value;
+        if (!serial) return;
+        showMessage("Loading usage history...");
+        try {
+          const query = new URLSearchParams({
+            serial: serial,
+            range: activeRange,
+            bucket: document.getElementById("bucketSelect").value,
+            tz: browserTimeZone(),
+          });
+          if (activeRange === "year")
+            query.set(
+              "start",
+              document.getElementById("yearInput").value + "-01-01",
+            );
+          if (activeRange === "week")
+            query.set("start", document.getElementById("weekInput").value);
+          if (activeRange === "month")
+            query.set(
+              "start",
+              document.getElementById("monthInput").value + "-01",
+            );
+          if (activeRange === "custom") {
+            query.set("start", document.getElementById("startInput").value);
+            query.set("end", document.getElementById("endInput").value);
+          }
+          const response = await fetch(
+            BASE_PATH + "/api/usage-dashboard?" + query.toString(),
+          );
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.error || "Failed to load usage dashboard");
+          dashboardData = data;
+          renderDashboard(data);
+          const firstPeak =
+            data.peak_days && data.peak_days[0] && data.peak_days[0].date;
+          const selectedDate = firstPeak || data.range.end || todayLocalIso();
+          document.getElementById("timelineDate").value = selectedDate;
+          await loadTimeline(selectedDate);
+          clearMessage();
+        } catch (error) {
+          showMessage(error.message, true);
+        }
+      }
+
+      async function loadTimeline(dateValue) {
+        const serial = document.getElementById("deviceSelect").value;
+        if (!serial || !dateValue) return;
+        const panel = document.getElementById("timelinePanel");
+        panel.innerHTML =
+          '<div class="empty"><i class="mdi mdi-loading mdi-spin"></i> Loading timeline...</div>';
+        try {
+          const query = new URLSearchParams({
+            serial: serial,
+            date: dateValue,
+            tz: browserTimeZone(),
+          });
+          const response = await fetch(
+            BASE_PATH + "/api/usage-dashboard/timeline?" + query.toString(),
+          );
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.error || "Failed to load timeline");
+          timelineData = data;
+          renderTimeline(data);
+        } catch (error) {
+          panel.innerHTML =
+            '<div class="empty">' + esc(error.message) + "</div>";
+        }
+      }
+
+      function renderDashboard(data) {
+        const subtitle =
+          data.range.start + " to " + data.range.end + " - " + data.timezone;
+        document.getElementById("rangeSubtitle").textContent = subtitle;
+        renderSummary(data);
+        renderStates(data);
+        renderTrend(data);
+        renderCalendar(data);
+        renderPeaks(data);
+        renderWarnings(data);
+        renderContext(data);
+      }
+
+      function renderSummary(data) {
+        const totals = data.totals || {};
+        const cards = [
+          [
+            "Overall Active",
+            fmtDuration(totals.active_seconds),
+            "Overlap counted once",
+          ],
+          [
+            "Conditioning",
+            fmtDuration(totals.conditioning_seconds),
+            "Heat + aux + AC lanes",
+          ],
+          [
+            "Fan Only",
+            fmtDuration(totals.fan_only_seconds),
+            fmtDuration(totals.fan_overlap_seconds) + " overlap",
+          ],
+          [
+            "Runs",
+            String(totals.run_count || 0),
+            "Longest " + fmtDuration(totals.longest_run_seconds),
+          ],
+        ];
+        document.getElementById("summaryGrid").innerHTML = cards
+          .map(renderMetricCard)
+          .join("");
+      }
+
+      function renderStates(data) {
+        const states = data.states || {};
+        document.getElementById("stateGrid").innerHTML = stateOrder
+          .map(function (state) {
+            const item = states[state] || {};
+            return (
+              '<div class="metric-card state-card ' +
+              state +
+              '">' +
+              '<div class="metric-label">' +
+              esc(stateLabels[state]) +
+              "</div>" +
+              '<div class="metric-value">' +
+              esc(fmtDuration(item.seconds || 0)) +
+              "</div>" +
+              '<div class="metric-note">' +
+              esc(item.run_count || 0) +
+              " runs - avg " +
+              esc(fmtDuration(item.average_run_seconds || 0)) +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+      }
+
+      function renderTrend(data) {
+        const trend = data.trend || [];
+        if (!trend.length) {
+          document.getElementById("trendList").innerHTML =
+            '<div class="empty">No runtime in this range.</div>';
           return;
         }
-        await loadDashboard();
-      } catch (error) {
-        showMessage(error.message, true);
+        const maxTotal =
+          Math.max.apply(
+            null,
+            trend.map(function (row) {
+              return row.total_seconds || 0;
+            }),
+          ) || 1;
+        document.getElementById("trendList").innerHTML = trend
+          .map(function (row) {
+            const label =
+              row.bucket_start === row.bucket_end
+                ? row.bucket_start
+                : row.bucket_start.slice(0, 7);
+            return (
+              '<div class="trend-row">' +
+              '<div class="trend-label" title="' +
+              esc(row.bucket_start + " to " + row.bucket_end) +
+              '">' +
+              esc(label) +
+              "</div>" +
+              '<div class="stack-track" title="' +
+              esc(fmtDuration(row.total_seconds || 0)) +
+              '">' +
+              stateOrder
+                .map(function (state) {
+                  const seconds = row[stateFields[state]] || 0;
+                  const width = Math.max(0, (seconds / maxTotal) * 100);
+                  return (
+                    '<span class="seg ' +
+                    state +
+                    '" style="width:' +
+                    width +
+                    '%"></span>'
+                  );
+                })
+                .join("") +
+              "</div>" +
+              '<div class="trend-total">' +
+              esc(fmtDuration(row.total_seconds || 0)) +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
       }
-    }
 
-    function setRange(range) {
-      activeRange = range;
-      updateRangeControls();
-      loadDashboard();
-    }
+      function renderCalendar(data) {
+        const days = data.calendar || [];
+        const maxTotal =
+          Math.max.apply(
+            null,
+            days.map(function (day) {
+              return day.total_seconds || 0;
+            }),
+          ) || 1;
+        document.getElementById("calendarHint").textContent =
+          days.length + " days";
+        document.getElementById("calendarGrid").innerHTML = days
+          .map(function (day) {
+            const opacity = day.total_seconds
+              ? Math.max(0.18, Math.min(1, day.total_seconds / maxTotal))
+              : 0;
+            const color =
+              day.ac_seconds > day.heat_seconds + day.aux_heat_seconds
+                ? "59,130,246"
+                : "245,158,11";
+            const bg = day.total_seconds
+              ? "rgba(" + color + "," + opacity + ")"
+              : "rgba(148,163,184,0.14)";
+            return (
+              '<button class="day-cell" style="background:' +
+              bg +
+              '" title="' +
+              esc(day.date + ": " + fmtDuration(day.total_seconds || 0)) +
+              '" onclick="selectTimelineDate(\'' +
+              esc(day.date) +
+              "')\"></button>"
+            );
+          })
+          .join("");
+      }
 
-    function updateRangeControls() {
-      document.querySelectorAll('.range-btn').forEach(function(button) {
-        button.classList.toggle('active', button.dataset.range === activeRange);
-      });
-      document.getElementById('yearControl').style.display = activeRange === 'year' ? 'grid' : 'none';
-      document.getElementById('monthControl').style.display = activeRange === 'month' ? 'grid' : 'none';
-      document.getElementById('customControl').style.display = activeRange === 'custom' ? 'grid' : 'none';
-    }
+      function renderPeaks(data) {
+        const peaks = data.peak_days || [];
+        document.getElementById("peakList").innerHTML = peaks.length
+          ? peaks
+              .map(function (day) {
+                return (
+                  '<div class="list-row link-row" onclick="selectTimelineDate(\'' +
+                  esc(day.date) +
+                  "')\">" +
+                  "<span>" +
+                  esc(day.date) +
+                  "</span><strong>" +
+                  esc(fmtDuration(day.total_seconds || 0)) +
+                  "</strong>" +
+                  "</div>"
+                );
+              })
+              .join("")
+          : '<div class="empty">No peak days yet.</div>';
+      }
 
-    async function loadDashboard() {
-      const serial = document.getElementById('deviceSelect').value;
-      if (!serial) return;
-      showMessage('Loading usage history...');
-      try {
-        const query = new URLSearchParams({
-          serial: serial,
-          range: activeRange,
-          bucket: document.getElementById('bucketSelect').value,
-          tz: browserTimeZone(),
-        });
-        if (activeRange === 'year') query.set('start', document.getElementById('yearInput').value + '-01-01');
-        if (activeRange === 'month') query.set('start', document.getElementById('monthInput').value + '-01');
-        if (activeRange === 'custom') {
-          query.set('start', document.getElementById('startInput').value);
-          query.set('end', document.getElementById('endInput').value);
+      function renderWarnings(data) {
+        const warnings = data.warnings || [];
+        document.getElementById("warningList").innerHTML = warnings.length
+          ? warnings
+              .map(function (warning) {
+                return (
+                  '<div class="list-row"><span>' +
+                  esc(stateLabels[warning.state] || warning.state) +
+                  " short cycles</span><strong>" +
+                  esc(warning.count) +
+                  "</strong></div>"
+                );
+              })
+              .join("")
+          : '<div class="empty">No repeated short cycles detected.</div>';
+      }
+
+      function renderContext(data) {
+        const context = data.context || {};
+        const latest = context.latest;
+        if (!context.available || !latest) {
+          document.getElementById("contextList").innerHTML =
+            '<div class="empty">Context snapshots will appear as new thermostat changes arrive.</div>';
+          return;
         }
-        const response = await fetch(BASE_PATH + '/api/usage-dashboard?' + query.toString());
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to load usage dashboard');
-        dashboardData = data;
-        renderDashboard(data);
-        const firstPeak = data.peak_days && data.peak_days[0] && data.peak_days[0].date;
-        const selectedDate = firstPeak || data.range.end || todayLocalIso();
-        document.getElementById('timelineDate').value = selectedDate;
-        await loadTimeline(selectedDate);
-        clearMessage();
-      } catch (error) {
-        showMessage(error.message, true);
+        const rows = [
+          ["Snapshots", context.snapshot_count],
+          ["Latest", fmtDateTime(latest.captured_at)],
+          ["Current", tempText(latest.current_temperature)],
+          ["Target", targetText(latest)],
+          ["Humidity", latest.humidity == null ? "--" : latest.humidity + "%"],
+          ["Mode", latest.hvac_mode || "--"],
+          ["Eco", latest.eco_mode || "--"],
+          ["Away", latest.away == null ? "--" : latest.away ? "Yes" : "No"],
+          [
+            "Online",
+            latest.is_online == null ? "--" : latest.is_online ? "Yes" : "No",
+          ],
+        ];
+        document.getElementById("contextList").innerHTML = rows
+          .map(function (row) {
+            return (
+              '<div class="list-row"><span>' +
+              esc(row[0]) +
+              "</span><strong>" +
+              esc(row[1]) +
+              "</strong></div>"
+            );
+          })
+          .join("");
       }
-    }
 
-    async function loadTimeline(dateValue) {
-      const serial = document.getElementById('deviceSelect').value;
-      if (!serial || !dateValue) return;
-      const panel = document.getElementById('timelinePanel');
-      panel.innerHTML = '<div class="empty"><i class="mdi mdi-loading mdi-spin"></i> Loading timeline...</div>';
-      try {
-        const query = new URLSearchParams({
-          serial: serial,
-          date: dateValue,
-          tz: browserTimeZone(),
+      function renderTimeline(data) {
+        const segments = data.segments || [];
+        const lanes = stateOrder
+          .map(function (state) {
+            const bars = segments
+              .filter(function (segment) {
+                return segment.state === state;
+              })
+              .map(function (segment) {
+                const start = secondsIntoDay(segment.started_at);
+                const end = secondsIntoDay(segment.ended_at);
+                const left = (start / 86400) * 100;
+                const width = Math.max(((end - start) / 86400) * 100, 0.35);
+                return (
+                  '<span class="lane-bar ' +
+                  state +
+                  '" style="left:' +
+                  left +
+                  "%;width:" +
+                  width +
+                  '%" title="' +
+                  esc(
+                    fmtTime(segment.started_at) +
+                      " - " +
+                      fmtTime(segment.ended_at) +
+                      " (" +
+                      fmtDuration(segment.duration_seconds) +
+                      ")",
+                  ) +
+                  '"></span>'
+                );
+              })
+              .join("");
+            return (
+              '<div class="lane"><div class="lane-label">' +
+              esc(stateLabels[state]) +
+              '</div><div class="lane-track">' +
+              bars +
+              "</div></div>"
+            );
+          })
+          .join("");
+        const table = segments.length
+          ? "<table><thead><tr><th>State</th><th>Start</th><th>End</th><th>Duration</th></tr></thead><tbody>" +
+            segments
+              .map(function (segment) {
+                return (
+                  "<tr><td>" +
+                  esc(stateLabels[segment.state] || segment.state) +
+                  "</td><td>" +
+                  esc(fmtTime(segment.started_at)) +
+                  "</td><td>" +
+                  esc(fmtTime(segment.ended_at)) +
+                  "</td><td>" +
+                  esc(fmtDuration(segment.duration_seconds)) +
+                  "</td></tr>"
+                );
+              })
+              .join("") +
+            "</tbody></table>"
+          : '<div class="empty">No runtime on this day.</div>';
+        const snapshotTable = renderSnapshotTable(data.snapshots || []);
+        document.getElementById("timelinePanel").innerHTML =
+          (segments.length ? lanes : "") + table + snapshotTable;
+      }
+
+      function renderSnapshotTable(snapshots) {
+        if (!snapshots.length)
+          return '<div class="empty">No context snapshots on this day.</div>';
+        return (
+          "<table><thead><tr><th>Time</th><th>Current (&deg;F)</th><th>Target (&deg;F)</th><th>Humidity</th><th>Mode</th></tr></thead><tbody>" +
+          snapshots
+            .map(function (snapshot) {
+              return (
+                "<tr><td>" +
+                esc(fmtTime(snapshot.captured_at)) +
+                "</td><td>" +
+                esc(tempText(snapshot.current_temperature)) +
+                "</td><td>" +
+                esc(targetText(snapshot)) +
+                "</td><td>" +
+                esc(
+                  snapshot.humidity == null ? "--" : snapshot.humidity + "%",
+                ) +
+                "</td><td>" +
+                esc(snapshot.hvac_mode || "--") +
+                "</td></tr>"
+              );
+            })
+            .join("") +
+          "</tbody></table>"
+        );
+      }
+
+      function selectTimelineDate(dateValue) {
+        document.getElementById("timelineDate").value = dateValue;
+        loadTimeline(dateValue);
+      }
+
+      function exportCsv() {
+        if (!dashboardData) return;
+        const rows = [
+          [
+            "bucket_start",
+            "bucket_end",
+            "heat_seconds",
+            "aux_heat_seconds",
+            "ac_seconds",
+            "fan_seconds",
+            "total_seconds",
+          ],
+        ];
+        (dashboardData.trend || []).forEach(function (row) {
+          rows.push([
+            row.bucket_start,
+            row.bucket_end,
+            row.heat_seconds || 0,
+            row.aux_heat_seconds || 0,
+            row.ac_seconds || 0,
+            row.fan_seconds || 0,
+            row.total_seconds || 0,
+          ]);
         });
-        const response = await fetch(BASE_PATH + '/api/usage-dashboard/timeline?' + query.toString());
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to load timeline');
-        timelineData = data;
-        renderTimeline(data);
-      } catch (error) {
-        panel.innerHTML = '<div class="empty">' + esc(error.message) + '</div>';
+        const csv = rows
+          .map(function (row) {
+            return row
+              .map(function (cell) {
+                return '"' + String(cell).replace(/"/g, '""') + '"';
+              })
+              .join(",");
+          })
+          .join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download =
+          "usage-history-" + (dashboardData.serial || "device") + ".csv";
+        link.click();
+        URL.revokeObjectURL(url);
       }
-    }
 
-    function renderDashboard(data) {
-      const subtitle = data.range.start + ' to ' + data.range.end + ' - ' + data.timezone;
-      document.getElementById('rangeSubtitle').textContent = subtitle;
-      renderSummary(data);
-      renderStates(data);
-      renderTrend(data);
-      renderCalendar(data);
-      renderPeaks(data);
-      renderWarnings(data);
-      renderContext(data);
-    }
-
-    function renderSummary(data) {
-      const totals = data.totals || {};
-      const cards = [
-        ['Overall Active', fmtDuration(totals.active_seconds), 'Overlap counted once'],
-        ['Conditioning', fmtDuration(totals.conditioning_seconds), 'Heat + aux + AC lanes'],
-        ['Fan Only', fmtDuration(totals.fan_only_seconds), fmtDuration(totals.fan_overlap_seconds) + ' overlap'],
-        ['Runs', String(totals.run_count || 0), 'Longest ' + fmtDuration(totals.longest_run_seconds)],
-      ];
-      document.getElementById('summaryGrid').innerHTML = cards.map(renderMetricCard).join('');
-    }
-
-    function renderStates(data) {
-      const states = data.states || {};
-      document.getElementById('stateGrid').innerHTML = stateOrder.map(function(state) {
-        const item = states[state] || {};
-        return '<div class="metric-card state-card ' + state + '">' +
-          '<div class="metric-label">' + esc(stateLabels[state]) + '</div>' +
-          '<div class="metric-value">' + esc(fmtDuration(item.seconds || 0)) + '</div>' +
-          '<div class="metric-note">' + esc(item.run_count || 0) + ' runs - avg ' + esc(fmtDuration(item.average_run_seconds || 0)) + '</div>' +
-        '</div>';
-      }).join('');
-    }
-
-    function renderTrend(data) {
-      const trend = data.trend || [];
-      if (!trend.length) {
-        document.getElementById('trendList').innerHTML = '<div class="empty">No runtime in this range.</div>';
-        return;
+      function renderMetricCard(card) {
+        return (
+          '<div class="metric-card"><div class="metric-label">' +
+          esc(card[0]) +
+          '</div><div class="metric-value">' +
+          esc(card[1]) +
+          '</div><div class="metric-note">' +
+          esc(card[2]) +
+          "</div></div>"
+        );
       }
-      const maxTotal = Math.max.apply(null, trend.map(function(row) { return row.total_seconds || 0; })) || 1;
-      document.getElementById('trendList').innerHTML = trend.map(function(row) {
-        const label = row.bucket_start === row.bucket_end ? row.bucket_start : row.bucket_start.slice(0, 7);
-        return '<div class="trend-row">' +
-          '<div class="trend-label" title="' + esc(row.bucket_start + ' to ' + row.bucket_end) + '">' + esc(label) + '</div>' +
-          '<div class="stack-track" title="' + esc(fmtDuration(row.total_seconds || 0)) + '">' + stateOrder.map(function(state) {
-            const seconds = row[stateFields[state]] || 0;
-            const width = Math.max(0, (seconds / maxTotal) * 100);
-            return '<span class="seg ' + state + '" style="width:' + width + '%"></span>';
-          }).join('') + '</div>' +
-          '<div class="trend-total">' + esc(fmtDuration(row.total_seconds || 0)) + '</div>' +
-        '</div>';
-      }).join('');
-    }
 
-    function renderCalendar(data) {
-      const days = data.calendar || [];
-      const maxTotal = Math.max.apply(null, days.map(function(day) { return day.total_seconds || 0; })) || 1;
-      document.getElementById('calendarHint').textContent = days.length + ' days';
-      document.getElementById('calendarGrid').innerHTML = days.map(function(day) {
-        const opacity = day.total_seconds ? Math.max(0.18, Math.min(1, day.total_seconds / maxTotal)) : 0;
-        const color = day.ac_seconds > day.heat_seconds + day.aux_heat_seconds ? '59,130,246' : '245,158,11';
-        const bg = day.total_seconds ? 'rgba(' + color + ',' + opacity + ')' : 'rgba(148,163,184,0.14)';
-        return '<button class="day-cell" style="background:' + bg + '" title="' + esc(day.date + ': ' + fmtDuration(day.total_seconds || 0)) + '" onclick="selectTimelineDate(\'' + esc(day.date) + '\')"></button>';
-      }).join('');
-    }
-
-    function renderPeaks(data) {
-      const peaks = data.peak_days || [];
-      document.getElementById('peakList').innerHTML = peaks.length ? peaks.map(function(day) {
-        return '<div class="list-row link-row" onclick="selectTimelineDate(\'' + esc(day.date) + '\')">' +
-          '<span>' + esc(day.date) + '</span><strong>' + esc(fmtDuration(day.total_seconds || 0)) + '</strong>' +
-        '</div>';
-      }).join('') : '<div class="empty">No peak days yet.</div>';
-    }
-
-    function renderWarnings(data) {
-      const warnings = data.warnings || [];
-      document.getElementById('warningList').innerHTML = warnings.length ? warnings.map(function(warning) {
-        return '<div class="list-row"><span>' + esc(stateLabels[warning.state] || warning.state) + ' short cycles</span><strong>' + esc(warning.count) + '</strong></div>';
-      }).join('') : '<div class="empty">No repeated short cycles detected.</div>';
-    }
-
-    function renderContext(data) {
-      const context = data.context || {};
-      const latest = context.latest;
-      if (!context.available || !latest) {
-        document.getElementById('contextList').innerHTML = '<div class="empty">Context snapshots will appear as new thermostat changes arrive.</div>';
-        return;
+      function renderEmpty() {
+        document.getElementById("summaryGrid").innerHTML = "";
+        document.getElementById("stateGrid").innerHTML = "";
+        document.getElementById("trendList").innerHTML =
+          '<div class="empty">No data.</div>';
+        document.getElementById("calendarGrid").innerHTML = "";
+        document.getElementById("peakList").innerHTML =
+          '<div class="empty">No data.</div>';
+        document.getElementById("warningList").innerHTML =
+          '<div class="empty">No data.</div>';
+        document.getElementById("contextList").innerHTML =
+          '<div class="empty">No data.</div>';
+        document.getElementById("timelinePanel").innerHTML =
+          '<div class="empty">No data.</div>';
       }
-      const rows = [
-        ['Snapshots', context.snapshot_count],
-        ['Latest', fmtDateTime(latest.captured_at)],
-        ['Current', tempText(latest.current_temperature)],
-        ['Target', targetText(latest)],
-        ['Humidity', latest.humidity == null ? '--' : latest.humidity + '%'],
-        ['Mode', latest.hvac_mode || '--'],
-        ['Eco', latest.eco_mode || '--'],
-        ['Away', latest.away == null ? '--' : (latest.away ? 'Yes' : 'No')],
-        ['Online', latest.is_online == null ? '--' : (latest.is_online ? 'Yes' : 'No')],
-      ];
-      document.getElementById('contextList').innerHTML = rows.map(function(row) {
-        return '<div class="list-row"><span>' + esc(row[0]) + '</span><strong>' + esc(row[1]) + '</strong></div>';
-      }).join('');
-    }
 
-    function renderTimeline(data) {
-      const segments = data.segments || [];
-      const lanes = stateOrder.map(function(state) {
-        const bars = segments.filter(function(segment) { return segment.state === state; }).map(function(segment) {
-          const start = secondsIntoDay(segment.started_at);
-          const end = secondsIntoDay(segment.ended_at);
-          const left = (start / 86400) * 100;
-          const width = Math.max(((end - start) / 86400) * 100, 0.35);
-          return '<span class="lane-bar ' + state + '" style="left:' + left + '%;width:' + width + '%" title="' + esc(fmtTime(segment.started_at) + ' - ' + fmtTime(segment.ended_at) + ' (' + fmtDuration(segment.duration_seconds) + ')') + '"></span>';
-        }).join('');
-        return '<div class="lane"><div class="lane-label">' + esc(stateLabels[state]) + '</div><div class="lane-track">' + bars + '</div></div>';
-      }).join('');
-      const table = segments.length ? '<table><thead><tr><th>State</th><th>Start</th><th>End</th><th>Duration</th></tr></thead><tbody>' + segments.map(function(segment) {
-        return '<tr><td>' + esc(stateLabels[segment.state] || segment.state) + '</td><td>' + esc(fmtTime(segment.started_at)) + '</td><td>' + esc(fmtTime(segment.ended_at)) + '</td><td>' + esc(fmtDuration(segment.duration_seconds)) + '</td></tr>';
-      }).join('') + '</tbody></table>' : '<div class="empty">No runtime on this day.</div>';
-      const snapshotTable = renderSnapshotTable(data.snapshots || []);
-      document.getElementById('timelinePanel').innerHTML = (segments.length ? lanes : '') + table + snapshotTable;
-    }
-
-    function renderSnapshotTable(snapshots) {
-      if (!snapshots.length) return '<div class="empty">No context snapshots on this day.</div>';
-      return '<table><thead><tr><th>Time</th><th>Current (&deg;F)</th><th>Target (&deg;F)</th><th>Humidity</th><th>Mode</th></tr></thead><tbody>' + snapshots.map(function(snapshot) {
-        return '<tr><td>' + esc(fmtTime(snapshot.captured_at)) + '</td><td>' + esc(tempText(snapshot.current_temperature)) + '</td><td>' + esc(targetText(snapshot)) + '</td><td>' + esc(snapshot.humidity == null ? '--' : snapshot.humidity + '%') + '</td><td>' + esc(snapshot.hvac_mode || '--') + '</td></tr>';
-      }).join('') + '</tbody></table>';
-    }
-
-    function selectTimelineDate(dateValue) {
-      document.getElementById('timelineDate').value = dateValue;
-      loadTimeline(dateValue);
-    }
-
-    function exportCsv() {
-      if (!dashboardData) return;
-      const rows = [['bucket_start','bucket_end','heat_seconds','aux_heat_seconds','ac_seconds','fan_seconds','total_seconds']];
-      (dashboardData.trend || []).forEach(function(row) {
-        rows.push([
-          row.bucket_start,
-          row.bucket_end,
-          row.heat_seconds || 0,
-          row.aux_heat_seconds || 0,
-          row.ac_seconds || 0,
-          row.fan_seconds || 0,
-          row.total_seconds || 0,
-        ]);
-      });
-      const csv = rows.map(function(row) {
-        return row.map(function(cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
-      }).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'usage-history-' + (dashboardData.serial || 'device') + '.csv';
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function renderMetricCard(card) {
-      return '<div class="metric-card"><div class="metric-label">' + esc(card[0]) + '</div><div class="metric-value">' + esc(card[1]) + '</div><div class="metric-note">' + esc(card[2]) + '</div></div>';
-    }
-
-    function renderEmpty() {
-      document.getElementById('summaryGrid').innerHTML = '';
-      document.getElementById('stateGrid').innerHTML = '';
-      document.getElementById('trendList').innerHTML = '<div class="empty">No data.</div>';
-      document.getElementById('calendarGrid').innerHTML = '';
-      document.getElementById('peakList').innerHTML = '<div class="empty">No data.</div>';
-      document.getElementById('warningList').innerHTML = '<div class="empty">No data.</div>';
-      document.getElementById('contextList').innerHTML = '<div class="empty">No data.</div>';
-      document.getElementById('timelinePanel').innerHTML = '<div class="empty">No data.</div>';
-    }
-
-    function showMessage(text, isError) {
-      const el = document.getElementById('message');
-      el.textContent = text;
-      el.className = 'message open' + (isError ? ' err' : '');
-    }
-
-    function clearMessage() {
-      const el = document.getElementById('message');
-      el.textContent = '';
-      el.className = 'message';
-    }
-
-    function fmtDuration(seconds) {
-      seconds = Math.max(0, Math.round(seconds || 0));
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      if (h && m) return h + 'h ' + m + 'm';
-      if (h) return h + 'h';
-      if (m) return m + 'm';
-      return seconds ? seconds + 's' : '0m';
-    }
-
-    function secondsIntoDay(value) {
-      const d = new Date(value);
-      return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-    }
-
-    function fmtTime(value) {
-      if (!value) return '--';
-      return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    }
-
-    function fmtDateTime(value) {
-      if (!value) return '--';
-      return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    }
-
-    function c2f(value) {
-      return (value * 9 / 5) + 32;
-    }
-
-    function tempText(value) {
-      return value == null ? '--' : String(Math.round(c2f(value))) + '\u00B0F';
-    }
-
-    function targetText(snapshot) {
-      if (snapshot.target_temperature_low != null || snapshot.target_temperature_high != null) {
-        return tempText(snapshot.target_temperature_low) + ' / ' + tempText(snapshot.target_temperature_high);
+      function showMessage(text, isError) {
+        const el = document.getElementById("message");
+        el.textContent = text;
+        el.className = "message open" + (isError ? " err" : "");
       }
-      return tempText(snapshot.target_temperature);
-    }
 
-    function todayLocalIso() {
-      const now = new Date();
-      const offset = now.getTimezoneOffset();
-      return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
-    }
+      function clearMessage() {
+        const el = document.getElementById("message");
+        el.textContent = "";
+        el.className = "message";
+      }
 
-    function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-  </script>
-</body>
+      function fmtDuration(seconds) {
+        seconds = Math.max(0, Math.round(seconds || 0));
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h && m) return h + "h " + m + "m";
+        if (h) return h + "h";
+        if (m) return m + "m";
+        return seconds ? seconds + "s" : "0m";
+      }
+
+      function secondsIntoDay(value) {
+        const d = new Date(value);
+        return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+      }
+
+      function fmtTime(value) {
+        if (!value) return "--";
+        return new Date(value).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+
+      function fmtDateTime(value) {
+        if (!value) return "--";
+        return new Date(value).toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+
+      function c2f(value) {
+        return (value * 9) / 5 + 32;
+      }
+
+      function tempText(value) {
+        return value == null
+          ? "--"
+          : String(Math.round(c2f(value))) + "\u00B0F";
+      }
+
+      function targetText(snapshot) {
+        if (
+          snapshot.target_temperature_low != null ||
+          snapshot.target_temperature_high != null
+        ) {
+          return (
+            tempText(snapshot.target_temperature_low) +
+            " / " +
+            tempText(snapshot.target_temperature_high)
+          );
+        }
+        return tempText(snapshot.target_temperature);
+      }
+
+      function todayLocalIso() {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        return new Date(now.getTime() - offset * 60000)
+          .toISOString()
+          .slice(0, 10);
+      }
+
+      function esc(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+    </script>
+  </body>
 </html>

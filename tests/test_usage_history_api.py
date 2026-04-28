@@ -349,6 +349,65 @@ async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
 
 
 @pytest.mark.asyncio
+async def test_usage_dashboard_api_supports_week_range(
+    aiohttp_client,
+    sqlmodel_service,
+    state_service,
+    subscription_manager,
+    device_availability,
+):
+    """Return the Monday-through-Sunday week containing the requested anchor date."""
+    usage_history = UsageHistoryService(sqlmodel_service, state_service)
+    await usage_history.initialize()
+
+    serial = "WEEK123"
+    utc = ZoneInfo("UTC")
+    anchor_day = datetime(2026, 1, 7, tzinfo=utc).date()
+    in_week_start = datetime(2026, 1, 6, 8, 0, tzinfo=utc)
+    out_of_week_start = datetime(2026, 1, 12, 8, 0, tzinfo=utc)
+
+    await sqlmodel_service.create_hvac_usage_segment(
+        HvacUsageSegment(
+            serial=serial,
+            state=HvacUsageState.HEAT,
+            started_at=in_week_start,
+            last_observed_at=in_week_start + timedelta(minutes=10),
+            ended_at=in_week_start + timedelta(minutes=10),
+        )
+    )
+    await sqlmodel_service.create_hvac_usage_segment(
+        HvacUsageSegment(
+            serial=serial,
+            state=HvacUsageState.HEAT,
+            started_at=out_of_week_start,
+            last_observed_at=out_of_week_start + timedelta(minutes=10),
+            ended_at=out_of_week_start + timedelta(minutes=10),
+        )
+    )
+
+    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    app["usage_history_service"] = usage_history
+    client = await aiohttp_client(app)
+
+    resp = await client.get(
+        "/api/usage-dashboard",
+        params={"serial": serial, "range": "week", "start": anchor_day.isoformat(), "tz": "UTC"},
+    )
+    assert resp.status == 200
+    payload = await resp.json()
+
+    assert payload["range"]["type"] == "week"
+    assert payload["range"]["start"] == "2026-01-05"
+    assert payload["range"]["end"] == "2026-01-11"
+    assert payload["range"]["days"] == 7
+    assert payload["totals"]["active_seconds"] == 600
+    assert len(payload["calendar"]) == 7
+    assert payload["peak_days"][0]["date"] == "2026-01-06"
+
+    await usage_history.close()
+
+
+@pytest.mark.asyncio
 async def test_usage_dashboard_api_validates_range_inputs(
     aiohttp_client,
     sqlmodel_service,

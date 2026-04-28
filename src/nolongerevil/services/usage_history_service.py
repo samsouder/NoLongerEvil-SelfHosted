@@ -443,6 +443,15 @@ class UsageHistoryService:
                 "year",
             )
 
+        if range_type == "week":
+            anchor = start_date or today
+            week_start = anchor - timedelta(days=anchor.weekday())
+            return (
+                self._day_start(week_start, timezone),
+                self._day_start(week_start + timedelta(days=7), timezone),
+                "week",
+            )
+
         if range_type == "month":
             anchor = start_date or today
             month_start = date(anchor.year, anchor.month, 1)
@@ -453,7 +462,7 @@ class UsageHistoryService:
             )
 
         if range_type != "all":
-            raise ValueError("range must be all, year, month, or custom")
+            raise ValueError("range must be all, year, week, month, or custom")
 
         bounds = await self._storage.get_hvac_usage_bounds(serial)
         if bounds is None:
