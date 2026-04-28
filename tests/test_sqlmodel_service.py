@@ -1,6 +1,6 @@
 """Tests for SQLModel service implementation."""
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -14,7 +14,6 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
-    HvacUsageDailyRollup,
     HvacUsageSegment,
     HvacUsageState,
     IntegrationConfig,
@@ -459,44 +458,8 @@ class TestSQLModelService:
         stale_closed = await sqlmodel_service.close_stale_hvac_usage_segments()
         assert stale_closed == 0
 
-    async def test_prune_hvac_usage_segments(self, sqlmodel_service):
-        """Test pruning old HVAC usage segments while keeping recent history."""
-        now = datetime.now().replace(microsecond=1000)
-        old_end = now - timedelta(days=95)
-        recent_end = now - timedelta(days=1)
-
-        await sqlmodel_service.create_hvac_usage_segment(
-            HvacUsageSegment(
-                serial="HVAC2",
-                state=HvacUsageState.AC,
-                started_at=old_end - timedelta(minutes=20),
-                last_observed_at=old_end - timedelta(minutes=5),
-                ended_at=old_end,
-            )
-        )
-        kept = await sqlmodel_service.create_hvac_usage_segment(
-            HvacUsageSegment(
-                serial="HVAC2",
-                state=HvacUsageState.FAN,
-                started_at=recent_end - timedelta(minutes=30),
-                last_observed_at=recent_end - timedelta(minutes=5),
-                ended_at=recent_end,
-            )
-        )
-
-        pruned = await sqlmodel_service.prune_hvac_usage_segments(now - timedelta(days=90))
-        assert pruned == 1
-
-        listed = await sqlmodel_service.list_hvac_usage_segments(
-            "HVAC2",
-            now - timedelta(days=7),
-            now + timedelta(days=1),
-        )
-        assert len(listed) == 1
-        assert listed[0].id == kept.id
-
     async def test_usage_dashboard_storage_helpers(self, sqlmodel_service):
-        """Test context snapshot and daily rollup storage helpers."""
+        """Test usage bounds and context snapshot storage helpers."""
         now = datetime.now().replace(microsecond=1000)
         await sqlmodel_service.create_hvac_usage_segment(
             HvacUsageSegment(
@@ -533,41 +496,6 @@ class TestSQLModelService:
             now + timedelta(minutes=1),
         )
         assert [item.id for item in listed_snapshots] == [snapshot.id]
-
-        rollup_day = date(2026, 1, 10)
-        rollup = await sqlmodel_service.upsert_hvac_usage_daily_rollup(
-            HvacUsageDailyRollup(
-                serial="DASHSTORE1",
-                timezone="UTC",
-                day=rollup_day,
-                state=HvacUsageState.HEAT,
-                total_seconds=1200,
-                run_count=1,
-                longest_run_seconds=1200,
-            )
-        )
-        updated_rollup = await sqlmodel_service.upsert_hvac_usage_daily_rollup(
-            HvacUsageDailyRollup(
-                serial="DASHSTORE1",
-                timezone="UTC",
-                day=rollup_day,
-                state=HvacUsageState.HEAT,
-                total_seconds=1800,
-                run_count=2,
-                longest_run_seconds=1200,
-            )
-        )
-        assert updated_rollup.id == rollup.id
-        assert updated_rollup.total_seconds == 1800
-
-        listed_rollups = await sqlmodel_service.list_hvac_usage_daily_rollups(
-            "DASHSTORE1",
-            "UTC",
-            rollup_day,
-            rollup_day + timedelta(days=1),
-        )
-        assert len(listed_rollups) == 1
-        assert listed_rollups[0].run_count == 2
 
 
 @pytest.mark.asyncio

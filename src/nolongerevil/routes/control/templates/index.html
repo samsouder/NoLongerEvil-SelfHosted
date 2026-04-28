@@ -850,6 +850,14 @@
     const pendingTargets = {};
     const usageHistoryCache = {};
     const COMPACT_USAGE_HISTORY_DAYS = 3;
+    const USAGE_STATE_ORDER = ['heat', 'aux_heat', 'ac', 'fan'];
+    const USAGE_STATE_LABELS = { heat: 'Heat', aux_heat: 'Aux Heat', ac: 'AC', fan: 'Fan' };
+    const USAGE_STATE_FIELDS = {
+      heat: 'heat_seconds',
+      aux_heat: 'aux_heat_seconds',
+      ac: 'ac_seconds',
+      fan: 'fan_seconds',
+    };
     // Declare before first loadDevices() call — let is not initialized until declaration runs
     let _ssePending = false;
     let _scanActive = false;  // true while scan results are displayed; pauses auto-refresh
@@ -1274,24 +1282,16 @@
       });
       const selectedDay = days.find(function(day) { return day.date === selectedDate; }) || null;
       const timeline = (data.timeline && data.timeline.segments) || [];
-      const stateOrder = ['heat', 'aux_heat', 'ac', 'fan'];
-      const laneLabels = { heat: 'Heat', aux_heat: 'Aux Heat', ac: 'AC', fan: 'Fan' };
-      const stateFields = {
-        heat: 'heat_seconds',
-        aux_heat: 'aux_heat_seconds',
-        ac: 'ac_seconds',
-        fan: 'fan_seconds',
-      };
       const dailyTotals = selectedDay || {
         heat_seconds: 0,
         aux_heat_seconds: 0,
         ac_seconds: 0,
         fan_seconds: 0,
       };
-      const dailyCards = stateOrder.map(function(state) {
-        const field = stateFields[state];
+      const dailyCards = USAGE_STATE_ORDER.map(function(state) {
+        const field = USAGE_STATE_FIELDS[state];
         return '<div class="history-total-card">' +
-          '<span class="history-total-label">' + esc(laneLabels[state]) + '</span>' +
+          '<span class="history-total-label">' + esc(USAGE_STATE_LABELS[state]) + '</span>' +
           '<span class="history-total-value">' + esc(fmtDurationShort(dailyTotals[field])) + '</span>' +
         '</div>';
       }).join('');
@@ -1317,20 +1317,20 @@
         return '<span class="history-axis-label"' + align + '>' + label + '</span>';
       }).join('');
 
-      const lanes = stateOrder.map(function(state) {
+      const lanes = USAGE_STATE_ORDER.map(function(state) {
         const bars = timeline.filter(function(segment) { return segment.state === state; }).map(function(segment) {
           const startSeconds = secondsIntoDay(segment.started_at, data.timezone || undefined);
           const endSeconds = secondsIntoDay(segment.ended_at, data.timezone || undefined);
           const left = (startSeconds / 86400) * 100;
           const width = Math.max(((endSeconds - startSeconds) / 86400) * 100, 0.35);
-          const title = laneLabels[state] + ': ' + fmtTimeOfDay(segment.started_at, data.timezone || undefined) + ' - ' + fmtTimeOfDay(segment.ended_at, data.timezone || undefined) + ' (' + fmtDurationShort(segment.duration_seconds) + ')';
+          const title = USAGE_STATE_LABELS[state] + ': ' + fmtTimeOfDay(segment.started_at, data.timezone || undefined) + ' - ' + fmtTimeOfDay(segment.ended_at, data.timezone || undefined) + ' (' + fmtDurationShort(segment.duration_seconds) + ')';
           return '<span class="history-bar ' + state + '" style="left:' + left + '%;width:' + width + '%" title="' + esc(title) + '"></span>';
         }).join('');
         const grid = [25, 50, 75].map(function(pct) {
           return '<span class="history-gridline" style="left:' + pct + '%"></span>';
         }).join('');
         return '<div class="history-lane">' +
-          '<span class="history-lane-label">' + laneLabels[state] + '</span>' +
+          '<span class="history-lane-label">' + USAGE_STATE_LABELS[state] + '</span>' +
           '<div class="history-track">' + grid + bars + '</div>' +
         '</div>';
       }).join('');

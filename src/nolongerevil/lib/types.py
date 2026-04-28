@@ -1,7 +1,7 @@
 """Type definitions for nolongerevil server."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum, StrEnum
 from typing import Any
 
@@ -106,21 +106,6 @@ class ThermostatStateSnapshot:
     eco_mode: str | None = None
     away: bool | None = None
     is_online: bool | None = None
-    id: int | None = None
-
-
-@dataclass
-class HvacUsageDailyRollup:
-    """Represents a daily usage rollup for read-optimized history views."""
-
-    serial: str
-    timezone: str
-    day: date
-    state: HvacUsageState
-    total_seconds: int = 0
-    run_count: int = 0
-    longest_run_seconds: int = 0
-    updated_at: datetime = field(default_factory=datetime.now)
     id: int | None = None
 
 

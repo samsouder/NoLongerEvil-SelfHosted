@@ -261,9 +261,9 @@ async def handle_usage_history(request: web.Request) -> web.Response:
         return web.json_response({"error": "date must be YYYY-MM-DD"}, status=400)
     timezone_name = request.query.get("tz")
 
-    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    usage_history_service = _get_usage_history_service(request)
     if usage_history_service is None:
-        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+        return _usage_history_unavailable_response()
 
     history = await usage_history_service.get_usage_history(
         serial,
@@ -286,9 +286,9 @@ async def handle_usage_dashboard(request: web.Request) -> web.Response:
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
 
-    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    usage_history_service = _get_usage_history_service(request)
     if usage_history_service is None:
-        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+        return _usage_history_unavailable_response()
 
     try:
         dashboard = await usage_history_service.get_usage_dashboard(
@@ -316,9 +316,9 @@ async def handle_usage_dashboard_timeline(request: web.Request) -> web.Response:
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
 
-    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    usage_history_service = _get_usage_history_service(request)
     if usage_history_service is None:
-        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+        return _usage_history_unavailable_response()
 
     timeline = await usage_history_service.get_usage_dashboard_timeline(
         serial,
@@ -332,6 +332,14 @@ def _parse_optional_date(raw_value: str | None, field: str) -> date | None:
     if not raw_value:
         return None
     return _parse_required_date(raw_value, field)
+
+
+def _get_usage_history_service(request: web.Request) -> UsageHistoryService | None:
+    return request.app.get("usage_history_service")
+
+
+def _usage_history_unavailable_response() -> web.Response:
+    return web.json_response({"error": "Usage history service unavailable"}, status=503)
 
 
 def _parse_required_date(raw_value: str | None, field: str) -> date:

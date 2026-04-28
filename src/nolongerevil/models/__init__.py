@@ -6,7 +6,6 @@ from sqlmodel import SQLModel
 from nolongerevil.models.auth import APIKeyModel  # noqa: F401
 from nolongerevil.models.device import (  # noqa: F401
     DeviceObjectModel,
-    HvacUsageDailyRollupModel,
     HvacUsageSegmentModel,
     LogModel,
     SessionModel,
@@ -22,7 +21,6 @@ __all__ = [
     "DeviceObjectModel",
     "SessionModel",
     "LogModel",
-    "HvacUsageDailyRollupModel",
     "HvacUsageSegmentModel",
     "ThermostatStateSnapshotModel",
     # User models

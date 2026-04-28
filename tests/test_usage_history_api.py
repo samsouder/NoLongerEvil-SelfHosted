@@ -10,21 +10,32 @@ from nolongerevil.main import create_control_app
 from nolongerevil.services.usage_history_service import UsageHistoryService
 
 
-@pytest.mark.asyncio
-async def test_usage_history_api_defaults_to_empty_ten_day_window(
+@pytest.fixture
+async def usage_history_api(
     aiohttp_client,
     sqlmodel_service,
     state_service,
     subscription_manager,
     device_availability,
 ):
-    """Return an empty 10-day window when no history has been collected."""
     usage_history = UsageHistoryService(sqlmodel_service, state_service)
     await usage_history.initialize()
-
     app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
     app["usage_history_service"] = usage_history
     client = await aiohttp_client(app)
+
+    try:
+        yield client, usage_history
+    finally:
+        await usage_history.close()
+
+
+@pytest.mark.asyncio
+async def test_usage_history_api_defaults_to_empty_three_day_window(
+    usage_history_api,
+):
+    """Return an empty 3-day window when no history has been collected."""
+    client, _usage_history = usage_history_api
 
     resp = await client.get("/api/usage-history", params={"serial": "EMPTY1"})
     assert resp.status == 200
@@ -32,27 +43,21 @@ async def test_usage_history_api_defaults_to_empty_ten_day_window(
     payload = await resp.json()
     assert payload["serial"] == "EMPTY1"
     assert payload["timezone"] == "UTC"
-    assert len(payload["days"]) == 10
+    assert len(payload["days"]) == 3
     assert payload["timeline"]["segments"] == []
     assert all(
         day["heat_seconds"] == day["ac_seconds"] == day["aux_heat_seconds"] == day["fan_seconds"] == 0
         for day in payload["days"]
     )
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_history_api_aggregates_days_and_selected_timeline(
-    aiohttp_client,
+    usage_history_api,
     sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
 ):
     """Split cross-midnight segments into daily totals and selected-day timeline entries."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
+    client, _usage_history = usage_history_api
 
     serial = "API123"
     utc = ZoneInfo("UTC")
@@ -82,10 +87,6 @@ async def test_usage_history_api_aggregates_days_and_selected_timeline(
         )
     )
 
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
-
     resp = await client.get(
         "/api/usage-history",
         params={"serial": serial, "days": 2, "date": today.isoformat(), "tz": "UTC"},
@@ -109,44 +110,27 @@ async def test_usage_history_api_aggregates_days_and_selected_timeline(
     assert timeline[1]["state"] == "fan"
     assert timeline[1]["duration_seconds"] == 1800
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_history_api_rejects_invalid_days(
-    aiohttp_client,
-    sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
+    usage_history_api,
 ):
     """Reject requests outside the allowed day range."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
-
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
+    client, _usage_history = usage_history_api
 
     resp = await client.get("/api/usage-history", params={"serial": "BAD1", "days": 91})
     assert resp.status == 400
     payload = await resp.json()
     assert "days must be between 1 and 90" in payload["error"]
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_history_api_applies_requested_timezone_to_day_bucketing(
-    aiohttp_client,
+    usage_history_api,
     sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
 ):
     """Convert stored timestamps into the requested usage-history timezone."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
+    client, _usage_history = usage_history_api
 
     serial = "TZ123"
     chicago = ZoneInfo("America/Chicago")
@@ -165,10 +149,6 @@ async def test_usage_history_api_applies_requested_timezone_to_day_bucketing(
             ended_at=end,
         )
     )
-
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
 
     resp = await client.get(
         "/api/usage-history",
@@ -189,20 +169,14 @@ async def test_usage_history_api_applies_requested_timezone_to_day_bucketing(
     assert timeline[0]["started_at"] == expected_start
     assert timeline[0]["ended_at"] == expected_end
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_history_api_falls_back_to_utc_for_invalid_timezone(
-    aiohttp_client,
+    usage_history_api,
     sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
 ):
     """Invalid timezone values should not change bucketing away from UTC."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
+    client, _usage_history = usage_history_api
 
     serial = "BADTZ1"
     utc = ZoneInfo("UTC")
@@ -221,10 +195,6 @@ async def test_usage_history_api_falls_back_to_utc_for_invalid_timezone(
         )
     )
 
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
-
     resp = await client.get(
         "/api/usage-history",
         params={"serial": serial, "days": 2, "date": today.isoformat(), "tz": "Not/AZone"},
@@ -238,20 +208,14 @@ async def test_usage_history_api_falls_back_to_utc_for_invalid_timezone(
     assert payload["days"][1]["date"] == yesterday.isoformat()
     assert payload["days"][1]["heat_seconds"] == 1800
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
-    aiohttp_client,
+    usage_history_api,
     sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
 ):
     """Return expanded all-time usage metrics and selected-day detail."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
+    client, _usage_history = usage_history_api
 
     serial = "DASH123"
     utc = ZoneInfo("UTC")
@@ -303,10 +267,6 @@ async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
         )
     )
 
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
-
     resp = await client.get(
         "/api/usage-dashboard",
         params={"serial": serial, "range": "all", "bucket": "daily", "tz": "UTC"},
@@ -345,20 +305,14 @@ async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
     assert timeline["summary"]["total_seconds"] == 2400
     assert len(timeline["snapshots"]) == 1
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_dashboard_api_supports_week_range(
-    aiohttp_client,
+    usage_history_api,
     sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
 ):
     """Return the Monday-through-Sunday week containing the requested anchor date."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
+    client, _usage_history = usage_history_api
 
     serial = "WEEK123"
     utc = ZoneInfo("UTC")
@@ -385,10 +339,6 @@ async def test_usage_dashboard_api_supports_week_range(
         )
     )
 
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
-
     resp = await client.get(
         "/api/usage-dashboard",
         params={"serial": serial, "range": "week", "start": anchor_day.isoformat(), "tz": "UTC"},
@@ -404,24 +354,13 @@ async def test_usage_dashboard_api_supports_week_range(
     assert len(payload["calendar"]) == 7
     assert payload["peak_days"][0]["date"] == "2026-01-06"
 
-    await usage_history.close()
-
 
 @pytest.mark.asyncio
 async def test_usage_dashboard_api_validates_range_inputs(
-    aiohttp_client,
-    sqlmodel_service,
-    state_service,
-    subscription_manager,
-    device_availability,
+    usage_history_api,
 ):
     """Reject invalid dashboard range requests with a clear 400."""
-    usage_history = UsageHistoryService(sqlmodel_service, state_service)
-    await usage_history.initialize()
-
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
-    app["usage_history_service"] = usage_history
-    client = await aiohttp_client(app)
+    client, _usage_history = usage_history_api
 
     resp = await client.get(
         "/api/usage-dashboard",
@@ -430,8 +369,6 @@ async def test_usage_dashboard_api_validates_range_inputs(
     assert resp.status == 400
     payload = await resp.json()
     assert "custom range requires start and end dates" in payload["error"]
-
-    await usage_history.close()
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ import hashlib
 import json
 import random
 import string
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,6 @@ from nolongerevil.lib.types import (
     DeviceShareInvite,
     DeviceSharePermission,
     EntryKey,
-    HvacUsageDailyRollup,
     HvacUsageSegment,
     IntegrationConfig,
     ThermostatStateSnapshot,
@@ -41,7 +40,6 @@ from nolongerevil.models import (
     DeviceShareInviteModel,
     DeviceShareModel,
     EntryKeyModel,
-    HvacUsageDailyRollupModel,
     HvacUsageSegmentModel,
     IntegrationConfigModel,
     LogModel,
@@ -58,7 +56,6 @@ from nolongerevil.models.converters import (
     device_share_invite_to_model,
     device_share_to_model,
     entry_key_to_model,
-    hvac_usage_daily_rollup_to_model,
     hvac_usage_segment_to_model,
     integration_config_to_model,
     model_to_api_key,
@@ -67,7 +64,6 @@ from nolongerevil.models.converters import (
     model_to_device_share,
     model_to_device_share_invite,
     model_to_entry_key,
-    model_to_hvac_usage_daily_rollup,
     model_to_hvac_usage_segment,
     model_to_integration_config,
     model_to_thermostat_state_snapshot,
@@ -228,10 +224,6 @@ class SQLModelService(AbstractDeviceStateManager):
                     ThermostatStateSnapshotModel.serial == serial
                 )
             )
-            await session.execute(
-                delete(HvacUsageDailyRollupModel).where(HvacUsageDailyRollupModel.serial == serial)
-            )
-
             await session.commit()
             return count
 
@@ -319,19 +311,6 @@ class SQLModelService(AbstractDeviceStateManager):
             await session.commit()
             return len(models)
 
-    async def prune_hvac_usage_segments(self, older_than: datetime) -> int:
-        """Delete ended HVAC usage segments older than the cutoff."""
-        cutoff_ms = timestamp_to_ms(older_than) or 0
-        async with self._session_maker() as session:
-            result = await session.execute(
-                delete(HvacUsageSegmentModel).where(
-                    HvacUsageSegmentModel.ended_at.is_not(None),
-                    HvacUsageSegmentModel.ended_at < cutoff_ms,
-                )
-            )
-            await session.commit()
-            return result.rowcount or 0
-
     async def get_hvac_usage_bounds(self, serial: str) -> tuple[datetime, datetime] | None:
         """Get earliest and latest HVAC usage timestamps for a serial."""
         async with self._session_maker() as session:
@@ -408,56 +387,6 @@ class SQLModelService(AbstractDeviceStateManager):
             )
             models = result.scalars().all()
             return [model_to_thermostat_state_snapshot(model) for model in models]
-
-    async def upsert_hvac_usage_daily_rollup(
-        self,
-        rollup: HvacUsageDailyRollup,
-    ) -> HvacUsageDailyRollup:
-        """Insert or update a daily HVAC usage rollup."""
-        async with self._session_maker() as session:
-            result = await session.execute(
-                select(HvacUsageDailyRollupModel).where(
-                    HvacUsageDailyRollupModel.serial == rollup.serial,
-                    HvacUsageDailyRollupModel.timezone == rollup.timezone,
-                    HvacUsageDailyRollupModel.day == rollup.day.isoformat(),
-                    HvacUsageDailyRollupModel.state == rollup.state.value,
-                )
-            )
-            model = result.scalar_one_or_none()
-            if model is None:
-                model = hvac_usage_daily_rollup_to_model(rollup)
-                session.add(model)
-            else:
-                model.total_seconds = rollup.total_seconds
-                model.run_count = rollup.run_count
-                model.longest_run_seconds = rollup.longest_run_seconds
-                model.updated_at = timestamp_to_ms(rollup.updated_at) or now_ms()
-
-            await session.commit()
-            await session.refresh(model)
-            return model_to_hvac_usage_daily_rollup(model)
-
-    async def list_hvac_usage_daily_rollups(
-        self,
-        serial: str,
-        timezone: str,
-        start_day: date,
-        end_day: date,
-    ) -> list[HvacUsageDailyRollup]:
-        """List daily HVAC usage rollups for a date range."""
-        async with self._session_maker() as session:
-            result = await session.execute(
-                select(HvacUsageDailyRollupModel)
-                .where(
-                    HvacUsageDailyRollupModel.serial == serial,
-                    HvacUsageDailyRollupModel.timezone == timezone,
-                    HvacUsageDailyRollupModel.day >= start_day.isoformat(),
-                    HvacUsageDailyRollupModel.day < end_day.isoformat(),
-                )
-                .order_by(HvacUsageDailyRollupModel.day, HvacUsageDailyRollupModel.state)
-            )
-            models = result.scalars().all()
-            return [model_to_hvac_usage_daily_rollup(model) for model in models]
 
     # Entry key operations
 

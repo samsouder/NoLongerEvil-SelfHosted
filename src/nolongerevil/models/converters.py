@@ -1,7 +1,7 @@
 """Converters between dataclasses and SQLModel models."""
 
 import json
-from datetime import date, datetime
+from datetime import datetime
 
 from nolongerevil.lib.types import (
     APIKey,
@@ -13,7 +13,6 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
-    HvacUsageDailyRollup,
     HvacUsageSegment,
     HvacUsageState,
     IntegrationConfig,
@@ -25,7 +24,6 @@ from nolongerevil.models.auth import APIKeyModel
 from nolongerevil.models.base import ms_to_timestamp, now_ms, timestamp_to_ms
 from nolongerevil.models.device import (
     DeviceObjectModel,
-    HvacUsageDailyRollupModel,
     HvacUsageSegmentModel,
     ThermostatStateSnapshotModel,
 )
@@ -121,36 +119,6 @@ def model_to_thermostat_state_snapshot(
         eco_mode=model.eco_mode,
         away=model.away,
         is_online=model.is_online,
-    )
-
-
-def hvac_usage_daily_rollup_to_model(rollup: HvacUsageDailyRollup) -> HvacUsageDailyRollupModel:
-    """Convert HVAC daily rollup dataclass to SQLModel."""
-    return HvacUsageDailyRollupModel(
-        id=rollup.id,
-        serial=rollup.serial,
-        timezone=rollup.timezone,
-        day=rollup.day.isoformat(),
-        state=rollup.state.value,
-        total_seconds=rollup.total_seconds,
-        run_count=rollup.run_count,
-        longest_run_seconds=rollup.longest_run_seconds,
-        updated_at=timestamp_to_ms(rollup.updated_at) or now_ms(),
-    )
-
-
-def model_to_hvac_usage_daily_rollup(model: HvacUsageDailyRollupModel) -> HvacUsageDailyRollup:
-    """Convert SQLModel to HVAC daily rollup dataclass."""
-    return HvacUsageDailyRollup(
-        id=model.id,
-        serial=model.serial,
-        timezone=model.timezone,
-        day=date.fromisoformat(model.day),
-        state=HvacUsageState(model.state),
-        total_seconds=model.total_seconds,
-        run_count=model.run_count,
-        longest_run_seconds=model.longest_run_seconds,
-        updated_at=ms_to_timestamp(model.updated_at) or datetime.now(),
     )
 
 

@@ -1,7 +1,6 @@
 """HVAC runtime history collection and aggregation."""
 
 import asyncio
-import contextlib
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from datetime import time as dt_time
@@ -20,15 +19,22 @@ from nolongerevil.services.device_state_service import DeviceStateService
 
 logger = get_logger(__name__)
 
-DEFAULT_HISTORY_DAYS = 10
+DEFAULT_HISTORY_DAYS = 3
 MAX_HISTORY_DAYS = 90
-PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
 TRACKED_OBJECT_PREFIXES = ("device.", "shared.")
-USAGE_DASHBOARD_STATES = (
+USAGE_STATES = (
     HvacUsageState.HEAT,
     HvacUsageState.AUX_HEAT,
     HvacUsageState.AC,
     HvacUsageState.FAN,
+)
+USAGE_STATE_FIELDS = {state.value: f"{state.value}_seconds" for state in USAGE_STATES}
+CONDITIONING_STATE_VALUES = frozenset(
+    {
+        HvacUsageState.HEAT.value,
+        HvacUsageState.AUX_HEAT.value,
+        HvacUsageState.AC.value,
+    }
 )
 SHORT_CYCLE_SECONDS = 5 * 60
 SNAPSHOT_RELEVANT_FIELDS = {
@@ -60,14 +66,11 @@ class UsageHistoryService:
         self,
         storage: AbstractDeviceStateManager,
         state_service: DeviceStateService,
-        retention_days: int | None = None,
     ) -> None:
         self._storage = storage
         self._state_service = state_service
-        self._retention_days = retention_days if retention_days and retention_days > 0 else None
         self._active_segments: dict[str, dict[HvacUsageState, int]] = {}
         self._lock = asyncio.Lock()
-        self._prune_task: asyncio.Task[None] | None = None
         self._running = False
 
     async def initialize(self) -> None:
@@ -81,17 +84,9 @@ class UsageHistoryService:
             if closed:
                 logger.info(f"Closed {closed} stale HVAC usage segment(s)")
 
-            if self._retention_days is not None:
-                pruned = await self._prune_old_segments()
-                if pruned:
-                    logger.info(f"Pruned {pruned} expired HVAC usage segment(s)")
-
             startup_time = datetime.now()
             for serial in self._state_service.get_all_serials():
                 await self._sync_serial(serial, startup_time)
-
-        if self._retention_days is not None:
-            self._prune_task = asyncio.create_task(self._prune_loop())
 
     async def close(self) -> None:
         """Close all active segments and stop background work."""
@@ -108,12 +103,6 @@ class UsageHistoryService:
                 if not states:
                     self._active_segments.pop(serial, None)
             self._running = False
-
-        if self._prune_task:
-            self._prune_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._prune_task
-            self._prune_task = None
 
     async def handle_state_change(self, change: DeviceStateChange) -> None:
         """Track usage whenever device or shared buckets change."""
@@ -151,14 +140,15 @@ class UsageHistoryService:
         range_start = min(today_start, timeline_start)
         range_end = max(today_end, timeline_end)
         segments = await self._storage.list_hvac_usage_segments(serial, range_start, range_end)
+        intervals = self._build_clipped_intervals(segments, range_start, range_end, timezone)
 
         return {
             "serial": serial,
             "timezone": resolved_timezone_name,
-            "days": self._build_day_summaries(segments, today, days, timezone),
+            "days": self._build_day_summaries(intervals, today, days),
             "timeline": {
                 "date": timeline_date.isoformat(),
-                "segments": self._build_timeline(segments, timeline_start, timeline_end, timezone),
+                "segments": self._build_timeline(intervals, timeline_start, timeline_end),
             },
         }
 
@@ -540,7 +530,7 @@ class UsageHistoryService:
                 seconds = max(0, int((overlap_end - cursor_dt).total_seconds()))
                 key = cursor_dt.date().isoformat()
                 if seconds > 0 and key in daily:
-                    field = f"{interval['state']}_seconds"
+                    field = USAGE_STATE_FIELDS[interval["state"]]
                     daily[key][field] += seconds
                     active_ranges_by_day[key].append((cursor_dt, overlap_end))
                 cursor_dt = overlap_end
@@ -558,7 +548,7 @@ class UsageHistoryService:
                 "average_run_seconds": 0,
                 "longest_run_seconds": 0,
             }
-            for state in USAGE_DASHBOARD_STATES
+            for state in USAGE_STATES
         }
 
         for interval in intervals:
@@ -584,10 +574,7 @@ class UsageHistoryService:
                 {
                     "bucket_start": day["date"],
                     "bucket_end": day["date"],
-                    "heat_seconds": day["heat_seconds"],
-                    "aux_heat_seconds": day["aux_heat_seconds"],
-                    "ac_seconds": day["ac_seconds"],
-                    "fan_seconds": day["fan_seconds"],
+                    **{field: day[field] for field in USAGE_STATE_FIELDS.values()},
                     "total_seconds": day["total_seconds"],
                 }
                 for day in daily
@@ -597,10 +584,7 @@ class UsageHistoryService:
             lambda: {
                 "bucket_start": "",
                 "bucket_end": "",
-                "heat_seconds": 0,
-                "aux_heat_seconds": 0,
-                "ac_seconds": 0,
-                "fan_seconds": 0,
+                **dict.fromkeys(USAGE_STATE_FIELDS.values(), 0),
                 "total_seconds": 0,
             }
         )
@@ -611,13 +595,7 @@ class UsageHistoryService:
             bucket_row = monthly[month_key]
             bucket_row["bucket_start"] = month_key
             bucket_row["bucket_end"] = (self._next_month(month_start) - timedelta(days=1)).isoformat()
-            for field in (
-                "heat_seconds",
-                "aux_heat_seconds",
-                "ac_seconds",
-                "fan_seconds",
-                "total_seconds",
-            ):
+            for field in (*USAGE_STATE_FIELDS.values(), "total_seconds"):
                 bucket_row[field] += day[field]
 
         return [monthly[key] for key in sorted(monthly)]
@@ -674,20 +652,15 @@ class UsageHistoryService:
         conditioning_intervals = [
             interval
             for interval in intervals
-            if interval["state"]
-            in {
-                HvacUsageState.HEAT.value,
-                HvacUsageState.AUX_HEAT.value,
-                HvacUsageState.AC.value,
-            }
+            if interval["state"] in CONDITIONING_STATE_VALUES
         ]
         overlap_seconds = 0
         for fan in fan_intervals:
             overlap_seconds += self._interval_overlap_seconds(fan, conditioning_intervals)
         return overlap_seconds
 
-    @staticmethod
     def _interval_overlap_seconds(
+        self,
         interval: dict[str, Any],
         other_intervals: list[dict[str, Any]],
     ) -> int:
@@ -697,19 +670,7 @@ class UsageHistoryService:
             end_at = min(interval["ended_at"], other["ended_at"])
             if end_at > start_at:
                 overlaps.append((start_at, end_at))
-        if not overlaps:
-            return 0
-
-        overlaps.sort()
-        merged = [overlaps[0]]
-        for start_at, end_at in overlaps[1:]:
-            previous_start, previous_end = merged[-1]
-            if start_at <= previous_end:
-                merged[-1] = (previous_start, max(previous_end, end_at))
-            else:
-                merged.append((start_at, end_at))
-
-        return sum(int((end_at - start_at).total_seconds()) for start_at, end_at in merged)
+        return self._merged_range_seconds(overlaps)
 
     @staticmethod
     def _merged_range_seconds(ranges: list[tuple[datetime, datetime]]) -> int:
@@ -793,10 +754,7 @@ class UsageHistoryService:
     def _empty_dashboard_day(day: date) -> dict[str, Any]:
         return {
             "date": day.isoformat(),
-            "heat_seconds": 0,
-            "aux_heat_seconds": 0,
-            "ac_seconds": 0,
-            "fan_seconds": 0,
+            **dict.fromkeys(USAGE_STATE_FIELDS.values(), 0),
             "total_seconds": 0,
         }
 
@@ -827,93 +785,50 @@ class UsageHistoryService:
             return date(day.year + 1, 1, 1)
         return date(day.year, day.month + 1, 1)
 
-    async def _prune_loop(self) -> None:
-        while self._running:
-            try:
-                await asyncio.sleep(PRUNE_INTERVAL_SECONDS)
-                async with self._lock:
-                    if not self._running:
-                        return
-                    pruned = await self._prune_old_segments()
-                    if pruned:
-                        logger.info(f"Pruned {pruned} expired HVAC usage segment(s)")
-            except asyncio.CancelledError:
-                return
-            except Exception as exc:
-                logger.error(f"Failed to prune HVAC usage history: {exc}")
-
-    async def _prune_old_segments(self) -> int:
-        if self._retention_days is None:
-            return 0
-
-        cutoff = datetime.now() - timedelta(days=self._retention_days)
-        return await self._storage.prune_hvac_usage_segments(cutoff)
-
     def _build_day_summaries(
         self,
-        segments: list[HvacUsageSegment],
+        intervals: list[dict[str, Any]],
         today: date,
         days: int,
-        timezone: Any,
     ) -> list[dict[str, Any]]:
-        summary_by_date: dict[str, dict[str, Any]] = {}
-        ordered_dates: list[date] = []
-
-        for offset in range(days):
-            day = today - timedelta(days=offset)
-            key = day.isoformat()
-            ordered_dates.append(day)
-            summary_by_date[key] = {
-                "date": key,
-                "heat_seconds": 0,
-                "ac_seconds": 0,
-                "aux_heat_seconds": 0,
-                "fan_seconds": 0,
+        start_day = today - timedelta(days=days - 1)
+        daily = {
+            day["date"]: {
+                "date": day["date"],
+                "heat_seconds": day["heat_seconds"],
+                "ac_seconds": day["ac_seconds"],
+                "aux_heat_seconds": day["aux_heat_seconds"],
+                "fan_seconds": day["fan_seconds"],
             }
+            for day in self._build_dashboard_daily(
+                intervals,
+                start_day,
+                today + timedelta(days=1),
+            )
+        }
+        return [daily[(today - timedelta(days=offset)).isoformat()] for offset in range(days)]
 
-        now = self._now(timezone)
-        for segment in segments:
-            start_at = self._as_usage_timezone(segment.started_at, timezone)
-            effective_end = self._as_usage_timezone(segment.ended_at or now, timezone)
-            cursor = start_at
-            while cursor < effective_end:
-                day_start = self._day_start(cursor.date(), timezone)
-                day_end = day_start + timedelta(days=1)
-                overlap_start = max(start_at, day_start)
-                overlap_end = min(effective_end, day_end)
-                seconds = max(0, int((overlap_end - overlap_start).total_seconds()))
-                key = day_start.date().isoformat()
-                if seconds > 0 and key in summary_by_date:
-                    summary_by_date[key][f"{segment.state.value}_seconds"] += seconds
-                cursor = day_end
-
-        return [summary_by_date[day.isoformat()] for day in ordered_dates]
-
+    @staticmethod
     def _build_timeline(
-        self,
-        segments: list[HvacUsageSegment],
+        intervals: list[dict[str, Any]],
         timeline_start: datetime,
         timeline_end: datetime,
-        timezone: Any,
     ) -> list[dict[str, Any]]:
-        now = self._now(timezone)
         timeline = []
-        for segment in segments:
-            effective_end = self._as_usage_timezone(segment.ended_at or now, timezone)
-            start_at = max(self._as_usage_timezone(segment.started_at, timezone), timeline_start)
-            end_at = min(effective_end, timeline_end)
+        for interval in intervals:
+            start_at = max(interval["started_at"], timeline_start)
+            end_at = min(interval["ended_at"], timeline_end)
             duration_seconds = max(0, int((end_at - start_at).total_seconds()))
             if duration_seconds <= 0:
                 continue
             timeline.append(
                 {
-                    "state": segment.state.value,
+                    "state": interval["state"],
                     "started_at": start_at.isoformat(),
                     "ended_at": end_at.isoformat(),
                     "duration_seconds": duration_seconds,
                 }
             )
-        timeline.sort(key=lambda item: (item["started_at"], item["state"]))
         return timeline
 
     @staticmethod
