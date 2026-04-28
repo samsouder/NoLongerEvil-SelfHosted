@@ -457,6 +457,14 @@
       gap: 8px; margin-bottom: 8px;
       font-size: 11px; color: var(--text3);
     }
+    .history-meta-actions {
+      display: inline-flex; align-items: center; gap: 8px;
+      flex-wrap: wrap; justify-content: flex-end;
+    }
+    .history-detail-link {
+      color: var(--accent); text-decoration: none; font-weight: 700;
+    }
+    .history-detail-link:hover { color: var(--accent-hover); text-decoration: underline; }
     .history-summary {
       display: grid; gap: 4px;
       margin-bottom: 12px;
@@ -841,6 +849,7 @@
     const BASE_PATH = document.body.dataset.ingressPath || '';
     const pendingTargets = {};
     const usageHistoryCache = {};
+    const COMPACT_USAGE_HISTORY_DAYS = 3;
     // Declare before first loadDevices() call — let is not initialized until declaration runs
     let _ssePending = false;
     let _scanActive = false;  // true while scan results are displayed; pauses auto-refresh
@@ -1174,7 +1183,7 @@
 
     async function loadUsageHistory(serial, options) {
       const cache = usageHistoryCache[serial] || {};
-      cache.days = cache.days || 10;
+      cache.days = COMPACT_USAGE_HISTORY_DAYS;
       if (options && Object.prototype.hasOwnProperty.call(options, 'selectedDate')) {
         cache.selectedDate = options.selectedDate;
       }
@@ -1231,7 +1240,7 @@
     function toggleUsageHistory(serial) {
       const cache = usageHistoryCache[serial] || {};
       cache.open = !cache.open;
-      cache.days = cache.days || 10;
+      cache.days = COMPACT_USAGE_HISTORY_DAYS;
       usageHistoryCache[serial] = cache;
       renderDevices(lastDevices);
       if (cache.open && !cache.loading && !cache.data) loadUsageHistory(serial);
@@ -1330,9 +1339,10 @@
       const emptyState = timeline.length
         ? ''
         : '<div class="history-empty">No tracked runtime for ' + esc(selectedLabel.title + ' ' + selectedLabel.date).trim() + '.</div>';
+      const detailHref = BASE_PATH + '/usage-history?serial=' + encodeURIComponent(serial);
 
       return '<div class="history-section open"><div class="history-panel">' +
-        '<div class="history-meta"><span>Last ' + esc(cache.days) + ' days</span><span>' + esc(data.timezone || 'local') + '</span></div>' +
+        '<div class="history-meta"><span>Last ' + esc(cache.days) + ' days</span><span class="history-meta-actions"><span>' + esc(data.timezone || 'local') + '</span><a class="history-detail-link" href="' + esc(detailHref) + '">More stats</a></span></div>' +
         '<div class="history-daily-totals">' + dailyCards + '</div>' +
         '<div class="history-summary">' + summaryBody + '</div>' +
         '<div class="history-timeline-card">' +

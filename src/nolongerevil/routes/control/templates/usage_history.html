@@ -511,7 +511,7 @@
         <span class="control-label">Range</span>
         <div class="range-row">
           <button
-            class="range-btn active"
+            class="range-btn"
             data-range="all"
             onclick="setRange('all')"
           >
@@ -532,7 +532,7 @@
             Month
           </button>
           <button
-            class="range-btn"
+            class="range-btn active"
             data-range="week"
             onclick="setRange('week')"
           >
@@ -659,7 +659,7 @@
         ac: "ac_seconds",
         fan: "fan_seconds",
       };
-      let activeRange = "all";
+      let activeRange = "week";
       let devices = [];
       let dashboardData = null;
       let timelineData = null;

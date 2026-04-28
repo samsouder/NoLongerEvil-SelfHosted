@@ -451,3 +451,5 @@ async def test_usage_dashboard_page_loads(
     html = await resp.text()
     assert "Usage History" in html
     assert "/api/usage-dashboard" in html
+    assert 'let activeRange = "week";' in html
+    assert 'data-range="week"' in html
