@@ -319,12 +319,20 @@ async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
     assert payload["totals"]["heat_seconds"] == 1200
     assert payload["totals"]["ac_seconds"] == 600
     assert payload["totals"]["fan_seconds"] == 1800
+    assert payload["totals"]["active_seconds"] == 2400
+    assert payload["totals"]["total_seconds"] == 2400
+    assert payload["totals"]["lane_seconds"] == 3600
     assert payload["totals"]["fan_overlap_seconds"] == 1200
     assert payload["totals"]["fan_only_seconds"] == 600
     assert payload["states"]["heat"]["run_count"] == 1
     assert payload["context"]["available"] is True
     assert payload["context"]["latest"]["current_temperature"] == 20.5
     assert payload["peak_days"][0]["date"] == day.isoformat()
+    assert payload["peak_days"][0]["total_seconds"] == 2400
+    trend_day = next(row for row in payload["trend"] if row["bucket_start"] == day.isoformat())
+    assert trend_day["heat_seconds"] == 1200
+    assert trend_day["fan_seconds"] == 1800
+    assert trend_day["total_seconds"] == 2400
 
     timeline_resp = await client.get(
         "/api/usage-dashboard/timeline",
@@ -334,6 +342,7 @@ async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
     timeline = await timeline_resp.json()
     assert timeline["date"] == day.isoformat()
     assert len(timeline["segments"]) == 3
+    assert timeline["summary"]["total_seconds"] == 2400
     assert len(timeline["snapshots"]) == 1
 
     await usage_history.close()

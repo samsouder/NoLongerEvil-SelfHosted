@@ -199,6 +199,7 @@ class UsageHistoryService:
             key=lambda item: item["total_seconds"],
             reverse=True,
         )[:5]
+        active_seconds = self._calculate_active_seconds(intervals)
         fan_overlap_seconds = self._calculate_fan_overlap_seconds(intervals)
         short_cycles = [
             interval
@@ -220,6 +221,7 @@ class UsageHistoryService:
             "available_range": self._format_available_range(bounds, timezone),
             "totals": self._build_dashboard_totals(
                 state_metrics,
+                active_seconds,
                 fan_overlap_seconds,
                 len(short_cycles),
             ),
@@ -514,6 +516,7 @@ class UsageHistoryService:
         end_day: date,
     ) -> list[dict[str, Any]]:
         daily: dict[str, dict[str, Any]] = {}
+        active_ranges_by_day: dict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
         cursor = start_day
         while cursor < end_day:
             daily[cursor.isoformat()] = self._empty_dashboard_day(cursor)
@@ -530,8 +533,11 @@ class UsageHistoryService:
                 if seconds > 0 and key in daily:
                     field = f"{interval['state']}_seconds"
                     daily[key][field] += seconds
-                    daily[key]["total_seconds"] += seconds
+                    active_ranges_by_day[key].append((cursor_dt, overlap_end))
                 cursor_dt = overlap_end
+
+        for key, active_ranges in active_ranges_by_day.items():
+            daily[key]["total_seconds"] = self._merged_range_seconds(active_ranges)
 
         return [daily[key] for key in sorted(daily)]
 
@@ -610,6 +616,7 @@ class UsageHistoryService:
     def _build_dashboard_totals(
         self,
         state_metrics: dict[str, dict[str, int]],
+        active_seconds: int,
         fan_overlap_seconds: int,
         short_cycle_count: int,
     ) -> dict[str, Any]:
@@ -625,6 +632,8 @@ class UsageHistoryService:
             "aux_heat_seconds": aux_seconds,
             "ac_seconds": ac_seconds,
             "fan_seconds": fan_seconds,
+            "active_seconds": active_seconds,
+            "total_seconds": active_seconds,
             "conditioning_seconds": conditioning_seconds,
             "lane_seconds": heat_cool_seconds + fan_seconds,
             "run_count": sum(state["run_count"] for state in state_metrics.values()),
@@ -643,6 +652,11 @@ class UsageHistoryService:
             "fan_only_seconds": max(0, fan_seconds - fan_overlap_seconds),
             "short_cycle_count": short_cycle_count,
         }
+
+    def _calculate_active_seconds(self, intervals: list[dict[str, Any]]) -> int:
+        return self._merged_range_seconds(
+            [(interval["started_at"], interval["ended_at"]) for interval in intervals]
+        )
 
     def _calculate_fan_overlap_seconds(self, intervals: list[dict[str, Any]]) -> int:
         fan_intervals = [
@@ -680,6 +694,22 @@ class UsageHistoryService:
         overlaps.sort()
         merged = [overlaps[0]]
         for start_at, end_at in overlaps[1:]:
+            previous_start, previous_end = merged[-1]
+            if start_at <= previous_end:
+                merged[-1] = (previous_start, max(previous_end, end_at))
+            else:
+                merged.append((start_at, end_at))
+
+        return sum(int((end_at - start_at).total_seconds()) for start_at, end_at in merged)
+
+    @staticmethod
+    def _merged_range_seconds(ranges: list[tuple[datetime, datetime]]) -> int:
+        if not ranges:
+            return 0
+
+        ordered = sorted(ranges)
+        merged = [ordered[0]]
+        for start_at, end_at in ordered[1:]:
             previous_start, previous_end = merged[-1]
             if start_at <= previous_end:
                 merged[-1] = (previous_start, max(previous_end, end_at))

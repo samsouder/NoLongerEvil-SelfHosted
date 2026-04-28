@@ -471,10 +471,10 @@
     function renderSummary(data) {
       const totals = data.totals || {};
       const cards = [
-        ['Conditioning', fmtDuration(totals.conditioning_seconds), 'Heat + aux + AC'],
+        ['Overall Active', fmtDuration(totals.active_seconds), 'Overlap counted once'],
+        ['Conditioning', fmtDuration(totals.conditioning_seconds), 'Heat + aux + AC lanes'],
         ['Fan Only', fmtDuration(totals.fan_only_seconds), fmtDuration(totals.fan_overlap_seconds) + ' overlap'],
-        ['Runs', String(totals.run_count || 0), 'All tracked lanes'],
-        ['Longest Run', fmtDuration(totals.longest_run_seconds), 'Single segment'],
+        ['Runs', String(totals.run_count || 0), 'Longest ' + fmtDuration(totals.longest_run_seconds)],
       ];
       document.getElementById('summaryGrid').innerHTML = cards.map(renderMetricCard).join('');
     }
@@ -584,7 +584,7 @@
 
     function renderSnapshotTable(snapshots) {
       if (!snapshots.length) return '<div class="empty">No context snapshots on this day.</div>';
-      return '<table><thead><tr><th>Time</th><th>Current</th><th>Target</th><th>Humidity</th><th>Mode</th></tr></thead><tbody>' + snapshots.map(function(snapshot) {
+      return '<table><thead><tr><th>Time</th><th>Current (&deg;F)</th><th>Target (&deg;F)</th><th>Humidity</th><th>Mode</th></tr></thead><tbody>' + snapshots.map(function(snapshot) {
         return '<tr><td>' + esc(fmtTime(snapshot.captured_at)) + '</td><td>' + esc(tempText(snapshot.current_temperature)) + '</td><td>' + esc(targetText(snapshot)) + '</td><td>' + esc(snapshot.humidity == null ? '--' : snapshot.humidity + '%') + '</td><td>' + esc(snapshot.hvac_mode || '--') + '</td></tr>';
       }).join('') + '</tbody></table>';
     }
@@ -672,8 +672,12 @@
       return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     }
 
+    function c2f(value) {
+      return (value * 9 / 5) + 32;
+    }
+
     function tempText(value) {
-      return value == null ? '--' : String(Math.round(value * 10) / 10);
+      return value == null ? '--' : String(Math.round(c2f(value))) + '\u00B0F';
     }
 
     function targetText(snapshot) {
