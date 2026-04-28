@@ -154,6 +154,9 @@ These endpoints are for dashboards and automation:
 | `/status` | GET | Get device status |
 | `/api/devices` | GET | List all devices |
 | `/api/stats` | GET | Server statistics |
+| `/api/usage-history` | GET | Compact per-device HVAC runtime history |
+| `/api/usage-dashboard` | GET | Expanded per-device usage analytics |
+| `/api/usage-dashboard/timeline` | GET | Selected-day usage timeline and context snapshots |
 | `/api/scan-network` | POST | Scan local /24 subnet for Nest devices |
 | `/api/configure-nest` | POST | Point a discovered Nest device at this server |
 | `/notify-device` | POST | Force notification to subscribers |

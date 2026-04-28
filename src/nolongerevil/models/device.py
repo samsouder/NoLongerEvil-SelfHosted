@@ -1,6 +1,6 @@
 """Device-related SQLModel models."""
 
-from sqlalchemy import Column, Index, Text
+from sqlalchemy import Column, Index, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -72,4 +72,54 @@ class HvacUsageSegmentModel(SQLModel, table=True):
     __table_args__ = (
         Index("idx_hvac_usage_serial_started_at", "serial", "started_at"),
         Index("idx_hvac_usage_serial_state_ended_at", "serial", "state", "ended_at"),
+    )
+
+
+class ThermostatStateSnapshotModel(SQLModel, table=True):
+    """Thermostat context snapshot stored with usage history."""
+
+    __tablename__ = "thermostat_state_snapshots"
+
+    id: int | None = Field(default=None, primary_key=True)
+    serial: str
+    captured_at: int
+    current_temperature: float | None = None
+    target_temperature: float | None = None
+    target_temperature_high: float | None = None
+    target_temperature_low: float | None = None
+    humidity: float | None = None
+    hvac_mode: str | None = None
+    eco_mode: str | None = None
+    away: bool | None = None
+    is_online: bool | None = None
+
+    __table_args__ = (
+        Index("idx_thermostat_snapshots_serial_captured", "serial", "captured_at"),
+    )
+
+
+class HvacUsageDailyRollupModel(SQLModel, table=True):
+    """Daily HVAC runtime rollup stored for read-optimized history views."""
+
+    __tablename__ = "hvac_usage_daily_rollups"
+
+    id: int | None = Field(default=None, primary_key=True)
+    serial: str
+    timezone: str
+    day: str
+    state: str
+    total_seconds: int = 0
+    run_count: int = 0
+    longest_run_seconds: int = 0
+    updated_at: int
+
+    __table_args__ = (
+        UniqueConstraint(
+            "serial",
+            "timezone",
+            "day",
+            "state",
+            name="uq_hvac_usage_daily_rollup",
+        ),
+        Index("idx_hvac_rollups_serial_tz_day", "serial", "timezone", "day"),
     )

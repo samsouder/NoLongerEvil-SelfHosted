@@ -1,6 +1,6 @@
 """Tests for SQLModel service implementation."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -14,9 +14,11 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
+    HvacUsageDailyRollup,
     HvacUsageSegment,
     HvacUsageState,
     IntegrationConfig,
+    ThermostatStateSnapshot,
     UserInfo,
     WeatherData,
 )
@@ -492,6 +494,80 @@ class TestSQLModelService:
         )
         assert len(listed) == 1
         assert listed[0].id == kept.id
+
+    async def test_usage_dashboard_storage_helpers(self, sqlmodel_service):
+        """Test context snapshot and daily rollup storage helpers."""
+        now = datetime.now().replace(microsecond=1000)
+        await sqlmodel_service.create_hvac_usage_segment(
+            HvacUsageSegment(
+                serial="DASHSTORE1",
+                state=HvacUsageState.HEAT,
+                started_at=now - timedelta(minutes=20),
+                last_observed_at=now,
+                ended_at=now,
+            )
+        )
+        bounds = await sqlmodel_service.get_hvac_usage_bounds("DASHSTORE1")
+        assert bounds is not None
+        assert bounds[0] == now - timedelta(minutes=20)
+        assert bounds[1] == now
+
+        snapshot = await sqlmodel_service.create_thermostat_state_snapshot(
+            ThermostatStateSnapshot(
+                serial="DASHSTORE1",
+                captured_at=now,
+                current_temperature=20.5,
+                target_temperature=21,
+                humidity=45,
+                hvac_mode="heat",
+            )
+        )
+        latest = await sqlmodel_service.get_latest_thermostat_state_snapshot("DASHSTORE1")
+        assert latest is not None
+        assert latest.id == snapshot.id
+        assert latest.current_temperature == 20.5
+
+        listed_snapshots = await sqlmodel_service.list_thermostat_state_snapshots(
+            "DASHSTORE1",
+            now - timedelta(minutes=1),
+            now + timedelta(minutes=1),
+        )
+        assert [item.id for item in listed_snapshots] == [snapshot.id]
+
+        rollup_day = date(2026, 1, 10)
+        rollup = await sqlmodel_service.upsert_hvac_usage_daily_rollup(
+            HvacUsageDailyRollup(
+                serial="DASHSTORE1",
+                timezone="UTC",
+                day=rollup_day,
+                state=HvacUsageState.HEAT,
+                total_seconds=1200,
+                run_count=1,
+                longest_run_seconds=1200,
+            )
+        )
+        updated_rollup = await sqlmodel_service.upsert_hvac_usage_daily_rollup(
+            HvacUsageDailyRollup(
+                serial="DASHSTORE1",
+                timezone="UTC",
+                day=rollup_day,
+                state=HvacUsageState.HEAT,
+                total_seconds=1800,
+                run_count=2,
+                longest_run_seconds=1200,
+            )
+        )
+        assert updated_rollup.id == rollup.id
+        assert updated_rollup.total_seconds == 1800
+
+        listed_rollups = await sqlmodel_service.list_hvac_usage_daily_rollups(
+            "DASHSTORE1",
+            "UTC",
+            rollup_day,
+            rollup_day + timedelta(days=1),
+        )
+        assert len(listed_rollups) == 1
+        assert listed_rollups[0].run_count == 2
 
 
 @pytest.mark.asyncio

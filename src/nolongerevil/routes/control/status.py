@@ -274,6 +274,75 @@ async def handle_usage_history(request: web.Request) -> web.Response:
     return web.json_response(history)
 
 
+async def handle_usage_dashboard(request: web.Request) -> web.Response:
+    """Handle GET /api/usage-dashboard - get expanded usage analytics."""
+    serial = request.query.get("serial")
+    if not serial:
+        return web.json_response({"error": "Serial parameter required"}, status=400)
+
+    try:
+        start_date = _parse_optional_date(request.query.get("start"), "start")
+        end_date = _parse_optional_date(request.query.get("end"), "end")
+    except ValueError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+
+    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    if usage_history_service is None:
+        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+
+    try:
+        dashboard = await usage_history_service.get_usage_dashboard(
+            serial,
+            range_type=request.query.get("range", "all"),
+            start_date=start_date,
+            end_date=end_date,
+            timezone_name=request.query.get("tz"),
+            bucket=request.query.get("bucket", "auto"),
+        )
+    except ValueError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+
+    return web.json_response(dashboard)
+
+
+async def handle_usage_dashboard_timeline(request: web.Request) -> web.Response:
+    """Handle GET /api/usage-dashboard/timeline - get selected-day detail."""
+    serial = request.query.get("serial")
+    if not serial:
+        return web.json_response({"error": "Serial parameter required"}, status=400)
+
+    try:
+        selected_date = _parse_required_date(request.query.get("date"), "date")
+    except ValueError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+
+    usage_history_service: UsageHistoryService | None = request.app.get("usage_history_service")
+    if usage_history_service is None:
+        return web.json_response({"error": "Usage history service unavailable"}, status=503)
+
+    timeline = await usage_history_service.get_usage_dashboard_timeline(
+        serial,
+        selected_date,
+        timezone_name=request.query.get("tz"),
+    )
+    return web.json_response(timeline)
+
+
+def _parse_optional_date(raw_value: str | None, field: str) -> date | None:
+    if not raw_value:
+        return None
+    return _parse_required_date(raw_value, field)
+
+
+def _parse_required_date(raw_value: str | None, field: str) -> date:
+    if not raw_value:
+        raise ValueError(f"{field} must be YYYY-MM-DD")
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError:
+        raise ValueError(f"{field} must be YYYY-MM-DD")
+
+
 async def handle_notify_device(request: web.Request) -> web.Response:
     """Handle POST /notify-device - manual notification trigger.
 
@@ -541,6 +610,8 @@ def create_status_routes(
     app.router.add_get("/api/devices", handle_devices)
     app.router.add_get("/api/schedule", handle_schedule)
     app.router.add_get("/api/usage-history", handle_usage_history)
+    app.router.add_get("/api/usage-dashboard", handle_usage_dashboard)
+    app.router.add_get("/api/usage-dashboard/timeline", handle_usage_dashboard_timeline)
     app.router.add_get("/api/events", handle_sse)
     app.router.add_post("/notify-device", handle_notify_device)
     app.router.add_get("/api/stats", handle_stats)

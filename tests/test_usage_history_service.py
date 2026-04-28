@@ -134,6 +134,81 @@ async def test_usage_history_ignores_unrelated_updates(
 
 
 @pytest.mark.asyncio
+async def test_usage_history_records_context_snapshots_for_relevant_changes(
+    sqlmodel_service,
+    state_service,
+):
+    """Capture context snapshots only when dashboard-relevant state changes."""
+    usage_history = UsageHistoryService(sqlmodel_service, state_service)
+    state_service.set_integration_manager(_UsageCallbackManager(usage_history))
+    await usage_history.initialize()
+
+    serial = "SNAP123"
+    now = datetime.now().replace(microsecond=1000)
+
+    await state_service.upsert_object(
+        DeviceObject(
+            serial=serial,
+            object_key=f"device.{serial}",
+            object_revision=1,
+            object_timestamp=1,
+            value={"where_id": "kitchen"},
+            updated_at=now,
+        )
+    )
+    snapshots = await sqlmodel_service.list_thermostat_state_snapshots(
+        serial,
+        now - timedelta(minutes=1),
+        now + timedelta(minutes=1),
+    )
+    assert snapshots == []
+
+    await state_service.upsert_object(
+        DeviceObject(
+            serial=serial,
+            object_key=f"shared.{serial}",
+            object_revision=2,
+            object_timestamp=2,
+            value={
+                "current_temperature": 20.5,
+                "target_temperature": 21,
+                "target_temperature_type": "heat",
+                "away": False,
+            },
+            updated_at=now + timedelta(seconds=10),
+        )
+    )
+    await state_service.upsert_object(
+        DeviceObject(
+            serial=serial,
+            object_key=f"device.{serial}",
+            object_revision=3,
+            object_timestamp=3,
+            value={
+                "current_humidity": 42,
+                "eco": {"mode": "schedule"},
+                "is_online": True,
+            },
+            updated_at=now + timedelta(seconds=20),
+        )
+    )
+
+    snapshots = await sqlmodel_service.list_thermostat_state_snapshots(
+        serial,
+        now - timedelta(minutes=1),
+        now + timedelta(minutes=1),
+    )
+    assert len(snapshots) == 2
+    assert snapshots[0].current_temperature == 20.5
+    assert snapshots[0].target_temperature == 21
+    assert snapshots[1].humidity == 42
+    assert snapshots[1].eco_mode == "schedule"
+    assert snapshots[1].is_online is True
+
+    await usage_history.close()
+
+
+@pytest.mark.asyncio
 async def test_usage_history_startup_recovery_and_shutdown(
     sqlmodel_service,
     state_service,

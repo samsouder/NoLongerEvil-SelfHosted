@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from nolongerevil.lib.types import HvacUsageSegment, HvacUsageState
+from nolongerevil.lib.types import HvacUsageSegment, HvacUsageState, ThermostatStateSnapshot
 from nolongerevil.main import create_control_app
 from nolongerevil.services.usage_history_service import UsageHistoryService
 
@@ -239,3 +239,147 @@ async def test_usage_history_api_falls_back_to_utc_for_invalid_timezone(
     assert payload["days"][1]["heat_seconds"] == 1800
 
     await usage_history.close()
+
+
+@pytest.mark.asyncio
+async def test_usage_dashboard_api_returns_all_time_metrics_and_timeline(
+    aiohttp_client,
+    sqlmodel_service,
+    state_service,
+    subscription_manager,
+    device_availability,
+):
+    """Return expanded all-time usage metrics and selected-day detail."""
+    usage_history = UsageHistoryService(sqlmodel_service, state_service)
+    await usage_history.initialize()
+
+    serial = "DASH123"
+    utc = ZoneInfo("UTC")
+    day = datetime(2026, 1, 10, tzinfo=utc).date()
+    heat_start = datetime.combine(day, time(hour=7), tzinfo=utc)
+    heat_end = datetime.combine(day, time(hour=7, minute=20), tzinfo=utc)
+    fan_end = datetime.combine(day, time(hour=7, minute=30), tzinfo=utc)
+    ac_start = datetime.combine(day, time(hour=15), tzinfo=utc)
+    ac_end = datetime.combine(day, time(hour=15, minute=10), tzinfo=utc)
+
+    await sqlmodel_service.create_hvac_usage_segment(
+        HvacUsageSegment(
+            serial=serial,
+            state=HvacUsageState.HEAT,
+            started_at=heat_start,
+            last_observed_at=heat_end,
+            ended_at=heat_end,
+        )
+    )
+    await sqlmodel_service.create_hvac_usage_segment(
+        HvacUsageSegment(
+            serial=serial,
+            state=HvacUsageState.FAN,
+            started_at=heat_start,
+            last_observed_at=fan_end,
+            ended_at=fan_end,
+        )
+    )
+    await sqlmodel_service.create_hvac_usage_segment(
+        HvacUsageSegment(
+            serial=serial,
+            state=HvacUsageState.AC,
+            started_at=ac_start,
+            last_observed_at=ac_end,
+            ended_at=ac_end,
+        )
+    )
+    await sqlmodel_service.create_thermostat_state_snapshot(
+        ThermostatStateSnapshot(
+            serial=serial,
+            captured_at=heat_start,
+            current_temperature=20.5,
+            target_temperature=21.0,
+            humidity=44,
+            hvac_mode="heat",
+            eco_mode="schedule",
+            away=False,
+            is_online=True,
+        )
+    )
+
+    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    app["usage_history_service"] = usage_history
+    client = await aiohttp_client(app)
+
+    resp = await client.get(
+        "/api/usage-dashboard",
+        params={"serial": serial, "range": "all", "bucket": "daily", "tz": "UTC"},
+    )
+    assert resp.status == 200
+    payload = await resp.json()
+
+    assert payload["serial"] == serial
+    assert payload["range"]["type"] == "all"
+    assert payload["totals"]["heat_seconds"] == 1200
+    assert payload["totals"]["ac_seconds"] == 600
+    assert payload["totals"]["fan_seconds"] == 1800
+    assert payload["totals"]["fan_overlap_seconds"] == 1200
+    assert payload["totals"]["fan_only_seconds"] == 600
+    assert payload["states"]["heat"]["run_count"] == 1
+    assert payload["context"]["available"] is True
+    assert payload["context"]["latest"]["current_temperature"] == 20.5
+    assert payload["peak_days"][0]["date"] == day.isoformat()
+
+    timeline_resp = await client.get(
+        "/api/usage-dashboard/timeline",
+        params={"serial": serial, "date": day.isoformat(), "tz": "UTC"},
+    )
+    assert timeline_resp.status == 200
+    timeline = await timeline_resp.json()
+    assert timeline["date"] == day.isoformat()
+    assert len(timeline["segments"]) == 3
+    assert len(timeline["snapshots"]) == 1
+
+    await usage_history.close()
+
+
+@pytest.mark.asyncio
+async def test_usage_dashboard_api_validates_range_inputs(
+    aiohttp_client,
+    sqlmodel_service,
+    state_service,
+    subscription_manager,
+    device_availability,
+):
+    """Reject invalid dashboard range requests with a clear 400."""
+    usage_history = UsageHistoryService(sqlmodel_service, state_service)
+    await usage_history.initialize()
+
+    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    app["usage_history_service"] = usage_history
+    client = await aiohttp_client(app)
+
+    resp = await client.get(
+        "/api/usage-dashboard",
+        params={"serial": "BADRANGE", "range": "custom", "start": "2026-01-02"},
+    )
+    assert resp.status == 400
+    payload = await resp.json()
+    assert "custom range requires start and end dates" in payload["error"]
+
+    await usage_history.close()
+
+
+@pytest.mark.asyncio
+async def test_usage_dashboard_page_loads(
+    aiohttp_client,
+    sqlmodel_service,
+    state_service,
+    subscription_manager,
+    device_availability,
+):
+    """Serve the linked usage history dashboard page."""
+    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    client = await aiohttp_client(app)
+
+    resp = await client.get("/usage-history")
+    assert resp.status == 200
+    html = await resp.text()
+    assert "Usage History" in html
+    assert "/api/usage-dashboard" in html

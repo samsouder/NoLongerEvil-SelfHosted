@@ -1,7 +1,7 @@
 """Converters between dataclasses and SQLModel models."""
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 
 from nolongerevil.lib.types import (
     APIKey,
@@ -13,15 +13,22 @@ from nolongerevil.lib.types import (
     DeviceShareInviteStatus,
     DeviceSharePermission,
     EntryKey,
+    HvacUsageDailyRollup,
     HvacUsageSegment,
     HvacUsageState,
     IntegrationConfig,
+    ThermostatStateSnapshot,
     UserInfo,
     WeatherData,
 )
 from nolongerevil.models.auth import APIKeyModel
 from nolongerevil.models.base import ms_to_timestamp, now_ms, timestamp_to_ms
-from nolongerevil.models.device import DeviceObjectModel, HvacUsageSegmentModel
+from nolongerevil.models.device import (
+    DeviceObjectModel,
+    HvacUsageDailyRollupModel,
+    HvacUsageSegmentModel,
+    ThermostatStateSnapshotModel,
+)
 from nolongerevil.models.integration import IntegrationConfigModel, WeatherDataModel
 from nolongerevil.models.sharing import DeviceShareInviteModel, DeviceShareModel
 from nolongerevil.models.user import DeviceOwnerModel, EntryKeyModel, UserInfoModel
@@ -74,6 +81,76 @@ def model_to_hvac_usage_segment(model: HvacUsageSegmentModel) -> HvacUsageSegmen
         started_at=ms_to_timestamp(model.started_at) or datetime.now(),
         last_observed_at=ms_to_timestamp(model.last_observed_at) or datetime.now(),
         ended_at=ms_to_timestamp(model.ended_at),
+    )
+
+
+def thermostat_state_snapshot_to_model(
+    snapshot: ThermostatStateSnapshot,
+) -> ThermostatStateSnapshotModel:
+    """Convert thermostat state snapshot dataclass to SQLModel."""
+    return ThermostatStateSnapshotModel(
+        id=snapshot.id,
+        serial=snapshot.serial,
+        captured_at=timestamp_to_ms(snapshot.captured_at) or now_ms(),
+        current_temperature=snapshot.current_temperature,
+        target_temperature=snapshot.target_temperature,
+        target_temperature_high=snapshot.target_temperature_high,
+        target_temperature_low=snapshot.target_temperature_low,
+        humidity=snapshot.humidity,
+        hvac_mode=snapshot.hvac_mode,
+        eco_mode=snapshot.eco_mode,
+        away=snapshot.away,
+        is_online=snapshot.is_online,
+    )
+
+
+def model_to_thermostat_state_snapshot(
+    model: ThermostatStateSnapshotModel,
+) -> ThermostatStateSnapshot:
+    """Convert SQLModel to thermostat state snapshot dataclass."""
+    return ThermostatStateSnapshot(
+        id=model.id,
+        serial=model.serial,
+        captured_at=ms_to_timestamp(model.captured_at) or datetime.now(),
+        current_temperature=model.current_temperature,
+        target_temperature=model.target_temperature,
+        target_temperature_high=model.target_temperature_high,
+        target_temperature_low=model.target_temperature_low,
+        humidity=model.humidity,
+        hvac_mode=model.hvac_mode,
+        eco_mode=model.eco_mode,
+        away=model.away,
+        is_online=model.is_online,
+    )
+
+
+def hvac_usage_daily_rollup_to_model(rollup: HvacUsageDailyRollup) -> HvacUsageDailyRollupModel:
+    """Convert HVAC daily rollup dataclass to SQLModel."""
+    return HvacUsageDailyRollupModel(
+        id=rollup.id,
+        serial=rollup.serial,
+        timezone=rollup.timezone,
+        day=rollup.day.isoformat(),
+        state=rollup.state.value,
+        total_seconds=rollup.total_seconds,
+        run_count=rollup.run_count,
+        longest_run_seconds=rollup.longest_run_seconds,
+        updated_at=timestamp_to_ms(rollup.updated_at) or now_ms(),
+    )
+
+
+def model_to_hvac_usage_daily_rollup(model: HvacUsageDailyRollupModel) -> HvacUsageDailyRollup:
+    """Convert SQLModel to HVAC daily rollup dataclass."""
+    return HvacUsageDailyRollup(
+        id=model.id,
+        serial=model.serial,
+        timezone=model.timezone,
+        day=date.fromisoformat(model.day),
+        state=HvacUsageState(model.state),
+        total_seconds=model.total_seconds,
+        run_count=model.run_count,
+        longest_run_seconds=model.longest_run_seconds,
+        updated_at=ms_to_timestamp(model.updated_at) or datetime.now(),
     )
 
 

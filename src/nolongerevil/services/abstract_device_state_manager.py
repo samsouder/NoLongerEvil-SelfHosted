@@ -1,7 +1,7 @@
 """Abstract base class for device state persistence."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from nolongerevil.lib.types import (
@@ -11,8 +11,10 @@ from nolongerevil.lib.types import (
     DeviceShare,
     DeviceShareInvite,
     EntryKey,
+    HvacUsageDailyRollup,
     HvacUsageSegment,
     IntegrationConfig,
+    ThermostatStateSnapshot,
     UserInfo,
     WeatherData,
 )
@@ -109,6 +111,53 @@ class AbstractDeviceStateManager(ABC):
     @abstractmethod
     async def prune_hvac_usage_segments(self, older_than: datetime) -> int:
         """Delete ended HVAC usage segments older than the cutoff."""
+        pass
+
+    @abstractmethod
+    async def get_hvac_usage_bounds(self, serial: str) -> tuple[datetime, datetime] | None:
+        """Get earliest and latest HVAC usage timestamps for a serial."""
+        pass
+
+    @abstractmethod
+    async def create_thermostat_state_snapshot(
+        self,
+        snapshot: ThermostatStateSnapshot,
+    ) -> ThermostatStateSnapshot:
+        """Create a thermostat state snapshot."""
+        pass
+
+    @abstractmethod
+    async def get_latest_thermostat_state_snapshot(
+        self,
+        serial: str,
+    ) -> ThermostatStateSnapshot | None:
+        """Get the latest thermostat state snapshot for a serial."""
+        pass
+
+    @abstractmethod
+    async def list_thermostat_state_snapshots(
+        self,
+        serial: str,
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[ThermostatStateSnapshot]:
+        """List thermostat state snapshots in a time range."""
+        pass
+
+    @abstractmethod
+    async def upsert_hvac_usage_daily_rollup(self, rollup: HvacUsageDailyRollup) -> HvacUsageDailyRollup:
+        """Insert or update a daily HVAC usage rollup."""
+        pass
+
+    @abstractmethod
+    async def list_hvac_usage_daily_rollups(
+        self,
+        serial: str,
+        timezone: str,
+        start_day: date,
+        end_day: date,
+    ) -> list[HvacUsageDailyRollup]:
+        """List daily HVAC usage rollups for a date range."""
         pass
 
     # Entry key operations
