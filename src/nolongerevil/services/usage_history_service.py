@@ -260,10 +260,7 @@ class UsageHistoryService:
                 }
                 for interval in intervals
             ],
-            "snapshots": [
-                self._snapshot_to_response(snapshot, timezone)
-                for snapshot in snapshots
-            ],
+            "snapshots": [self._snapshot_to_response(snapshot, timezone) for snapshot in snapshots],
         }
 
     async def _sync_serial(self, serial: str, observed_at: datetime) -> None:
@@ -280,8 +277,8 @@ class UsageHistoryService:
                 del active_segments[state]
 
         for state in active_now:
-            segment_id = active_segments.get(state)
-            if segment_id is None:
+            existing_segment_id = active_segments.get(state)
+            if existing_segment_id is None:
                 segment = await self._storage.create_hvac_usage_segment(
                     HvacUsageSegment(
                         serial=serial,
@@ -295,7 +292,7 @@ class UsageHistoryService:
                 active_segments[state] = segment.id
             else:
                 await self._storage.update_hvac_usage_segment(
-                    segment_id,
+                    existing_segment_id,
                     last_observed_at=observed_at,
                 )
 
@@ -594,7 +591,9 @@ class UsageHistoryService:
             month_key = month_start.isoformat()
             bucket_row = monthly[month_key]
             bucket_row["bucket_start"] = month_key
-            bucket_row["bucket_end"] = (self._next_month(month_start) - timedelta(days=1)).isoformat()
+            bucket_row["bucket_end"] = (
+                self._next_month(month_start) - timedelta(days=1)
+            ).isoformat()
             for field in (*USAGE_STATE_FIELDS.values(), "total_seconds"):
                 bucket_row[field] += day[field]
 
@@ -650,9 +649,7 @@ class UsageHistoryService:
             interval for interval in intervals if interval["state"] == HvacUsageState.FAN.value
         ]
         conditioning_intervals = [
-            interval
-            for interval in intervals
-            if interval["state"] in CONDITIONING_STATE_VALUES
+            interval for interval in intervals if interval["state"] in CONDITIONING_STATE_VALUES
         ]
         overlap_seconds = 0
         for fan in fan_intervals:

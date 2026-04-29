@@ -93,6 +93,4 @@ class ThermostatStateSnapshotModel(SQLModel, table=True):
     away: bool | None = None
     is_online: bool | None = None
 
-    __table_args__ = (
-        Index("idx_thermostat_snapshots_serial_captured", "serial", "captured_at"),
-    )
+    __table_args__ = (Index("idx_thermostat_snapshots_serial_captured", "serial", "captured_at"),)

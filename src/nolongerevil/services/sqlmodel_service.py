@@ -6,7 +6,7 @@ import random
 import string
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import (
@@ -290,7 +290,7 @@ class SQLModelService(AbstractDeviceStateManager):
                     HvacUsageSegmentModel.started_at < end_ms,
                     (
                         HvacUsageSegmentModel.ended_at.is_(None)
-                        | (HvacUsageSegmentModel.ended_at > start_ms)
+                        | (cast(Any, HvacUsageSegmentModel.ended_at) > start_ms)
                     ),
                 )
                 .order_by(HvacUsageSegmentModel.started_at, HvacUsageSegmentModel.id)

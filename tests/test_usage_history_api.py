@@ -20,7 +20,9 @@ async def usage_history_api(
 ):
     usage_history = UsageHistoryService(sqlmodel_service, state_service)
     await usage_history.initialize()
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    app = create_control_app(
+        state_service, subscription_manager, device_availability, sqlmodel_service
+    )
     app["usage_history_service"] = usage_history
     client = await aiohttp_client(app)
 
@@ -46,7 +48,11 @@ async def test_usage_history_api_defaults_to_empty_three_day_window(
     assert len(payload["days"]) == 3
     assert payload["timeline"]["segments"] == []
     assert all(
-        day["heat_seconds"] == day["ac_seconds"] == day["aux_heat_seconds"] == day["fan_seconds"] == 0
+        day["heat_seconds"]
+        == day["ac_seconds"]
+        == day["aux_heat_seconds"]
+        == day["fan_seconds"]
+        == 0
         for day in payload["days"]
     )
 
@@ -152,7 +158,12 @@ async def test_usage_history_api_applies_requested_timezone_to_day_bucketing(
 
     resp = await client.get(
         "/api/usage-history",
-        params={"serial": serial, "days": 2, "date": yesterday.isoformat(), "tz": "America/Chicago"},
+        params={
+            "serial": serial,
+            "days": 2,
+            "date": yesterday.isoformat(),
+            "tz": "America/Chicago",
+        },
     )
     assert resp.status == 200
 
@@ -380,7 +391,9 @@ async def test_usage_dashboard_page_loads(
     device_availability,
 ):
     """Serve the linked usage history dashboard page."""
-    app = create_control_app(state_service, subscription_manager, device_availability, sqlmodel_service)
+    app = create_control_app(
+        state_service, subscription_manager, device_availability, sqlmodel_service
+    )
     client = await aiohttp_client(app)
 
     resp = await client.get("/usage-history")
