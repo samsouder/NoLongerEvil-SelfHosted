@@ -47,6 +47,7 @@ docker run -d \
 ### Using Docker Compose
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/codykociemba/NoLongerEvil-SelfHosted.git
    cd nolongerevil-selfhosted
@@ -55,6 +56,7 @@ docker run -d \
 2. Edit `docker-compose.yml` with your settings (network, ports, environment variables).
 
 3. Start the server:
+
    ```bash
    docker compose up -d
    ```
@@ -64,6 +66,7 @@ docker run -d \
    - **Reboot** the thermostat after the server is running (press and hold the display until the screen goes black, wait a few seconds, then press it again until the Nest logo appears)
 
 The server will be available at:
+
 - **Device API**: Port 8000
 - **Control API**: Port 8082
 
@@ -72,23 +75,27 @@ The server will be available at:
 Requires Python 3.11 or higher.
 
 1. Create a virtual environment:
+
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
 2. Install the package (uses `pyproject.toml` for dependencies):
+
    ```bash
    pip install .
    ```
 
 3. Configure environment:
+
    ```bash
    cp .env.example .env
    # Edit .env with your settings
    ```
 
 4. Run the server:
+
    ```bash
    nolongerevil-server
    # Or: python -m nolongerevil.main
@@ -96,37 +103,49 @@ Requires Python 3.11 or higher.
 
 5. **Prepare your thermostat** (same as Docker above). Factory reset it before connecting, or reboot it after the server is running, so it sends its full state.
 
+### Development UI Preview
+
+To preview the dashboard without a thermostat, run the development-only mock server from a checkout:
+
+```bash
+uv run python scripts/dev_ui.py
+```
+
+Then open <http://127.0.0.1:8083/>. The preview serves the real Web UI with an in-memory set of fake thermostats, schedules, scan results, compact usage history, and expanded usage analytics. UI controls mutate the fake thermostat state through the same endpoints the dashboard normally calls.
+
+This command is intentionally not a packaged entry point. The script lives outside `src/nolongerevil`, so it is available for contributors but is not included in the shipped application wheel.
+
 ## Configuration
 
 For **Docker Compose**, edit the `environment:` block in `docker-compose.yml`. For **local Python**, copy `.env.example` to `.env` and edit it. Available settings:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_ORIGIN` | `http://localhost:8000` | Base URL for thermostat connections. Set to your LAN IP, e.g. `http://192.168.1.100:8000` |
-| `SERVER_PORT` | `8000` | Port for thermostat connections |
-| `CONTROL_PORT` | `8082` | Port for control API |
-| `CERT_DIR` | - | Directory containing TLS certificates |
-| `ENTRY_KEY_TTL_SECONDS` | `3600` | Pairing code expiration (seconds) |
-| `REQUIRE_DEVICE_PAIRING` | `false` | Require entry key pairing before device transport access |
-| `WEATHER_CACHE_TTL_MS` | `600000` | Weather cache duration (ms) |
-| `MAX_SUBSCRIPTIONS_PER_DEVICE` | `100` | Max concurrent subscriptions |
-| `SUSPEND_TIME_MAX` | `600` | Device sleep duration before fallback wake (seconds) |
-| `DEFER_DEVICE_WINDOW` | `15` | Delay before device sends updates after local changes (seconds) |
-| `DEBUG_LOGGING` | `false` | Enable debug logging |
-| `SQLITE3_DB_PATH` | `./data/database.sqlite` | Database file path |
+| Variable                       | Default                  | Description                                                                               |
+| ------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `API_ORIGIN`                   | `http://localhost:8000`  | Base URL for thermostat connections. Set to your LAN IP, e.g. `http://192.168.1.100:8000` |
+| `SERVER_PORT`                  | `8000`                   | Port for thermostat connections                                                           |
+| `CONTROL_PORT`                 | `8082`                   | Port for control API                                                                      |
+| `CERT_DIR`                     | -                        | Directory containing TLS certificates                                                     |
+| `ENTRY_KEY_TTL_SECONDS`        | `3600`                   | Pairing code expiration (seconds)                                                         |
+| `REQUIRE_DEVICE_PAIRING`       | `false`                  | Require entry key pairing before device transport access                                  |
+| `WEATHER_CACHE_TTL_MS`         | `600000`                 | Weather cache duration (ms)                                                               |
+| `MAX_SUBSCRIPTIONS_PER_DEVICE` | `100`                    | Max concurrent subscriptions                                                              |
+| `SUSPEND_TIME_MAX`             | `600`                    | Device sleep duration before fallback wake (seconds)                                      |
+| `DEFER_DEVICE_WINDOW`          | `15`                     | Delay before device sends updates after local changes (seconds)                           |
+| `DEBUG_LOGGING`                | `false`                  | Enable debug logging                                                                      |
+| `SQLITE3_DB_PATH`              | `./data/database.sqlite` | Database file path                                                                        |
 
 ### MQTT Configuration (Optional)
 
 To enable MQTT integration for Home Assistant:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MQTT_HOST` | - | MQTT broker hostname (required to enable MQTT) |
-| `MQTT_PORT` | `1883` | MQTT broker port |
-| `MQTT_USER` | - | MQTT username (optional) |
-| `MQTT_PASSWORD` | - | MQTT password (optional) |
-| `MQTT_TOPIC_PREFIX` | `nolongerevil` | Prefix for MQTT topics |
-| `MQTT_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant discovery prefix |
+| Variable                | Default         | Description                                    |
+| ----------------------- | --------------- | ---------------------------------------------- |
+| `MQTT_HOST`             | -               | MQTT broker hostname (required to enable MQTT) |
+| `MQTT_PORT`             | `1883`          | MQTT broker port                               |
+| `MQTT_USER`             | -               | MQTT username (optional)                       |
+| `MQTT_PASSWORD`         | -               | MQTT password (optional)                       |
+| `MQTT_TOPIC_PREFIX`     | `nolongerevil`  | Prefix for MQTT topics                         |
+| `MQTT_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant discovery prefix                |
 
 ## API Reference
 
@@ -134,37 +153,38 @@ To enable MQTT integration for Home Assistant:
 
 These endpoints emulate Nest cloud services:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/nest/entry` | GET | Service discovery |
-| `/nest/ping` | GET | Health check |
-| `/nest/passphrase` | GET | Generate pairing code |
-| `/nest/transport` | POST | Subscribe to device updates |
-| `/nest/transport/put` | POST | Push device state updates |
-| `/nest/transport/device/{serial}` | GET | Get device objects |
-| `/nest/weather/v1` | GET | Weather data proxy |
+| Endpoint                          | Method | Description                 |
+| --------------------------------- | ------ | --------------------------- |
+| `/nest/entry`                     | GET    | Service discovery           |
+| `/nest/ping`                      | GET    | Health check                |
+| `/nest/passphrase`                | GET    | Generate pairing code       |
+| `/nest/transport`                 | POST   | Subscribe to device updates |
+| `/nest/transport/put`             | POST   | Push device state updates   |
+| `/nest/transport/device/{serial}` | GET    | Get device objects          |
+| `/nest/weather/v1`                | GET    | Weather data proxy          |
 
 ### Control API (Control Port)
 
 These endpoints are for dashboards and automation:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/command` | POST | Send commands to thermostat |
-| `/status` | GET | Get device status |
-| `/api/devices` | GET | List all devices |
-| `/api/stats` | GET | Server statistics |
-| `/api/usage-history` | GET | Compact per-device HVAC runtime history |
-| `/api/usage-dashboard` | GET | Expanded per-device usage analytics |
-| `/api/usage-dashboard/timeline` | GET | Selected-day usage timeline and context snapshots |
-| `/api/scan-network` | POST | Scan local /24 subnet for Nest devices |
-| `/api/configure-nest` | POST | Point a discovered Nest device at this server |
-| `/notify-device` | POST | Force notification to subscribers |
-| `/health` | GET | Health check |
+| Endpoint                        | Method | Description                                       |
+| ------------------------------- | ------ | ------------------------------------------------- |
+| `/command`                      | POST   | Send commands to thermostat                       |
+| `/status`                       | GET    | Get device status                                 |
+| `/api/devices`                  | GET    | List all devices                                  |
+| `/api/stats`                    | GET    | Server statistics                                 |
+| `/api/usage-history`            | GET    | Compact per-device HVAC runtime history           |
+| `/api/usage-dashboard`          | GET    | Expanded per-device usage analytics               |
+| `/api/usage-dashboard/timeline` | GET    | Selected-day usage timeline and context snapshots |
+| `/api/scan-network`             | POST   | Scan local /24 subnet for Nest devices            |
+| `/api/configure-nest`           | POST   | Point a discovered Nest device at this server     |
+| `/notify-device`                | POST   | Force notification to subscribers                 |
+| `/health`                       | GET    | Health check                                      |
 
 #### Command Examples
 
 **Set Temperature:**
+
 ```bash
 curl -X POST http://localhost:8082/command \
   -H "Content-Type: application/json" \
@@ -172,6 +192,7 @@ curl -X POST http://localhost:8082/command \
 ```
 
 **Set Mode:**
+
 ```bash
 curl -X POST http://localhost:8082/command \
   -H "Content-Type: application/json" \
@@ -179,6 +200,7 @@ curl -X POST http://localhost:8082/command \
 ```
 
 **Set Away Mode:**
+
 ```bash
 curl -X POST http://localhost:8082/command \
   -H "Content-Type: application/json" \
@@ -186,6 +208,7 @@ curl -X POST http://localhost:8082/command \
 ```
 
 **Set Fan:**
+
 ```bash
 curl -X POST http://localhost:8082/command \
   -H "Content-Type: application/json" \
@@ -258,19 +281,22 @@ docker run -d \
 For production deployments with HTTPS:
 
 1. Place your certificates in a directory:
-   ```
+
+   ```text
    certs/
    ├── fullchain.pem
    └── privkey.pem
    ```
 
 2. Configure the server:
+
    ```bash
    CERT_DIR=/path/to/certs
    SERVER_PORT=443
    ```
 
 3. Mount the certificates in Docker:
+
    ```yaml
    volumes:
      - ./certs:/app/certs:ro
