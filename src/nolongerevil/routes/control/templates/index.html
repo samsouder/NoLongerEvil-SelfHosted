@@ -620,6 +620,21 @@
       padding: 6px 2px 2px;
     }
     @media (max-width: 520px) {
+      .history-summary-head,
+      .history-day-row {
+        grid-template-columns: minmax(64px, 0.7fr) repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .history-summary-head {
+        padding: 0 6px 4px;
+      }
+      .history-day-row {
+        padding: 8px 6px;
+      }
+      .history-day-label,
+      .history-cell {
+        min-width: 0;
+      }
       .card-row-climate {
         align-items: flex-start;
         gap: 12px;
