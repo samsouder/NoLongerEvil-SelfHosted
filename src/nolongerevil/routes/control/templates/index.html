@@ -30,6 +30,26 @@
       --text3: #94a3b8;
       --border: #e2e8f0;
       --hover: #f1f5f9;
+      --heat: #d55e00;
+      --heat-rgb: 213, 94, 0;
+      --heat-bg: rgba(var(--heat-rgb), 0.13);
+      --heat-text: #a34200;
+      --heat-on: #0f172a;
+      --aux: #cc79a7;
+      --aux-rgb: 204, 121, 167;
+      --aux-bg: rgba(var(--aux-rgb), 0.15);
+      --aux-text: #7e2f57;
+      --aux-on: #0f172a;
+      --ac: #0072b2;
+      --ac-rgb: 0, 114, 178;
+      --ac-bg: rgba(var(--ac-rgb), 0.12);
+      --ac-text: #075985;
+      --ac-on: #ffffff;
+      --fan: #009e73;
+      --fan-rgb: 0, 158, 115;
+      --fan-bg: rgba(var(--fan-rgb), 0.12);
+      --fan-text: #0f5f4d;
+      --fan-on: #0f172a;
       --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
       --shadow-lg: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
       --radius: 12px;
@@ -46,6 +66,26 @@
         --text3: #64748b;
         --border: #334155;
         --hover: #1e293b;
+        --heat: #f4a261;
+        --heat-rgb: 244, 162, 97;
+        --heat-bg: rgba(var(--heat-rgb), 0.18);
+        --heat-text: #ffb74d;
+        --heat-on: #0f172a;
+        --aux: #e6a8c7;
+        --aux-rgb: 230, 168, 199;
+        --aux-bg: rgba(var(--aux-rgb), 0.18);
+        --aux-text: #e6a8c7;
+        --aux-on: #0f172a;
+        --ac: #56b4e9;
+        --ac-rgb: 86, 180, 233;
+        --ac-bg: rgba(var(--ac-rgb), 0.18);
+        --ac-text: #7dd3fc;
+        --ac-on: #0f172a;
+        --fan: #4dd4ac;
+        --fan-rgb: 77, 212, 172;
+        --fan-bg: rgba(var(--fan-rgb), 0.18);
+        --fan-text: #4dd4ac;
+        --fan-on: #0f172a;
         --shadow: 0 1px 3px rgba(0,0,0,0.3);
         --shadow-lg: 0 4px 6px rgba(0,0,0,0.4);
       }
@@ -186,27 +226,45 @@
     /* HVAC card glow effects */
     .device-card { position: relative; overflow: hidden; transition: all 0.6s ease; border: 1.5px solid transparent; }
     .device-card.glow-heat {
-      border-color: rgba(249, 115, 22, 0.45);
-      box-shadow: 0 0 16px -2px rgba(249, 115, 22, 0.2), var(--shadow);
+      border-color: rgba(var(--heat-rgb), 0.48);
+      box-shadow: 0 0 16px -2px rgba(var(--heat-rgb), 0.22), var(--shadow);
+    }
+    .device-card.glow-aux {
+      border-color: rgba(var(--aux-rgb), 0.55);
+      box-shadow: 0 0 16px -2px rgba(var(--aux-rgb), 0.24), var(--shadow);
     }
     .device-card.glow-cool {
-      border-color: rgba(59, 130, 246, 0.45);
-      box-shadow: 0 0 16px -2px rgba(59, 130, 246, 0.2), var(--shadow);
+      border-color: rgba(var(--ac-rgb), 0.5);
+      box-shadow: 0 0 16px -2px rgba(var(--ac-rgb), 0.22), var(--shadow);
     }
-    .device-card.glow-heat.glow-cool {
+    .device-card.glow-fan {
+      border-color: rgba(var(--fan-rgb), 0.5);
+      box-shadow: 0 0 16px -2px rgba(var(--fan-rgb), 0.22), var(--shadow);
+    }
+    .device-card.glow-heat.glow-cool,
+    .device-card.glow-aux.glow-cool {
       border-color: rgba(168, 85, 247, 0.45);
       box-shadow: 0 0 16px -2px rgba(168, 85, 247, 0.2), var(--shadow);
     }
     @media (prefers-color-scheme: dark) {
       .device-card.glow-heat {
-        border-color: rgba(251, 146, 60, 0.5);
-        box-shadow: 0 0 16px -2px rgba(251, 146, 60, 0.25), var(--shadow);
+        border-color: rgba(var(--heat-rgb), 0.58);
+        box-shadow: 0 0 16px -2px rgba(var(--heat-rgb), 0.26), var(--shadow);
+      }
+      .device-card.glow-aux {
+        border-color: rgba(var(--aux-rgb), 0.58);
+        box-shadow: 0 0 16px -2px rgba(var(--aux-rgb), 0.26), var(--shadow);
       }
       .device-card.glow-cool {
-        border-color: rgba(96, 165, 250, 0.5);
-        box-shadow: 0 0 16px -2px rgba(96, 165, 250, 0.25), var(--shadow);
+        border-color: rgba(var(--ac-rgb), 0.58);
+        box-shadow: 0 0 16px -2px rgba(var(--ac-rgb), 0.26), var(--shadow);
       }
-      .device-card.glow-heat.glow-cool {
+      .device-card.glow-fan {
+        border-color: rgba(var(--fan-rgb), 0.58);
+        box-shadow: 0 0 16px -2px rgba(var(--fan-rgb), 0.26), var(--shadow);
+      }
+      .device-card.glow-heat.glow-cool,
+      .device-card.glow-aux.glow-cool {
         border-color: rgba(168, 85, 247, 0.5);
         box-shadow: 0 0 16px -2px rgba(168, 85, 247, 0.25), var(--shadow);
       }
@@ -224,13 +282,16 @@
     }
     .hvac-pill .mdi { font-size: 14px; }
     .hvac-pill.pill-heat {
-      background: rgba(251, 146, 60, 0.12); color: #ea580c;
+      background: var(--heat-bg); color: var(--heat-text);
+    }
+    .hvac-pill.pill-aux {
+      background: var(--aux-bg); color: var(--aux-text);
     }
     .hvac-pill.pill-cool {
-      background: rgba(96, 165, 250, 0.12); color: #2563eb;
+      background: var(--ac-bg); color: var(--ac-text);
     }
     .hvac-pill.pill-fan {
-      background: rgba(34, 197, 94, 0.10); color: #16a34a;
+      background: var(--fan-bg); color: var(--fan-text);
     }
     .hvac-pill.pill-humid {
       background: rgba(14, 165, 233, 0.10); color: #0284c7;
@@ -239,9 +300,6 @@
       background: rgba(239, 68, 68, 0.12); color: #dc2626;
     }
     @media (prefers-color-scheme: dark) {
-      .hvac-pill.pill-heat { background: rgba(251, 146, 60, 0.18); color: #fb923c; }
-      .hvac-pill.pill-cool { background: rgba(96, 165, 250, 0.18); color: #93c5fd; }
-      .hvac-pill.pill-fan { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
       .hvac-pill.pill-humid { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
       .hvac-pill.pill-emer { background: rgba(239, 68, 68, 0.18); color: #f87171; }
     }
@@ -345,8 +403,8 @@
       background: var(--card); color: var(--text);
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .mode-btn.active.m-heat { color: #dc2626; }
-    .mode-btn.active.m-cool { color: #2563eb; }
+    .mode-btn.active.m-heat { color: var(--heat-text); }
+    .mode-btn.active.m-cool { color: var(--ac-text); }
     .mode-btn.active.m-auto { color: #7c3aed; }
     .mode-btn.active.m-emer { color: #dc2626; }
 
@@ -402,7 +460,7 @@
     .fan-btn .mdi { font-size: 13px; }
     .fan-btn:hover { color: var(--text); }
     .fan-btn.active {
-      background: var(--card); color: #16a34a;
+      background: var(--card); color: var(--fan-text);
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     .fan-timer {
@@ -611,10 +669,10 @@
       border-radius: 999px;
       min-width: 2px;
     }
-    .history-bar.heat { background: rgba(245, 158, 11, 0.92); }
-    .history-bar.ac { background: rgba(59, 130, 246, 0.92); }
-    .history-bar.aux_heat { background: rgba(249, 115, 22, 0.92); }
-    .history-bar.fan { background: rgba(34, 197, 94, 0.92); }
+    .history-bar.heat { background: var(--heat); }
+    .history-bar.ac { background: var(--ac); }
+    .history-bar.aux_heat { background: var(--aux); }
+    .history-bar.fan { background: var(--fan); }
     .history-empty {
       font-size: 12px; color: var(--text3);
       padding: 6px 2px 2px;
@@ -696,8 +754,8 @@
     }
     .sched-circle:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 3; }
     .sched-circle:active { cursor: grabbing; }
-    .sched-circle.heat { background: #f59e0b; }
-    .sched-circle.cool { background: #3b82f6; }
+    .sched-circle.heat { background: var(--heat); color: var(--heat-on); }
+    .sched-circle.cool { background: var(--ac); color: var(--ac-on); }
     .sched-circle.range {
       background: #7c3aed;
       flex-direction: column; line-height: 1;
@@ -1738,8 +1796,10 @@
 
     function cardGlowClass(st) {
       let cls = '';
-      if (st.anyHeat) cls += ' glow-heat';
+      if (st.auxHeat || st.emerHeat) cls += ' glow-aux';
+      else if (st.heating) cls += ' glow-heat';
       if (st.anyCool) cls += ' glow-cool';
+      if (st.fan && !st.anyHeat && !st.anyCool) cls += ' glow-fan';
       return cls;
     }
 
@@ -1755,7 +1815,7 @@
       }
       // Aux heat
       if (st.auxHeat) {
-        pills += '<span class="hvac-pill pill-heat"><i class="mdi mdi-radiator"></i> Aux Heat</span>';
+        pills += '<span class="hvac-pill pill-aux"><i class="mdi mdi-radiator"></i> Aux Heat</span>';
       }
       // Primary heating
       if (st.heating) {

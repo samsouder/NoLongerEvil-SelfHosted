@@ -34,10 +34,14 @@
         --text3: #94a3b8;
         --border: #e2e8f0;
         --hover: #f1f5f9;
-        --heat: #f59e0b;
-        --aux: #f97316;
-        --ac: #3b82f6;
-        --fan: #22c55e;
+        --heat: #d55e00;
+        --heat-rgb: 213, 94, 0;
+        --aux: #cc79a7;
+        --aux-rgb: 204, 121, 167;
+        --ac: #0072b2;
+        --ac-rgb: 0, 114, 178;
+        --fan: #009e73;
+        --fan-rgb: 0, 158, 115;
         --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
         --radius: 12px;
       }
@@ -53,6 +57,14 @@
           --text3: #64748b;
           --border: #334155;
           --hover: #243449;
+          --heat: #f4a261;
+          --heat-rgb: 244, 162, 97;
+          --aux: #e6a8c7;
+          --aux-rgb: 230, 168, 199;
+          --ac: #56b4e9;
+          --ac-rgb: 86, 180, 233;
+          --fan: #4dd4ac;
+          --fan-rgb: 77, 212, 172;
           --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
       }
@@ -667,6 +679,12 @@
         ac: "ac_seconds",
         fan: "fan_seconds",
       };
+      const stateColorVars = {
+        heat: "--heat-rgb",
+        aux_heat: "--aux-rgb",
+        ac: "--ac-rgb",
+        fan: "--fan-rgb",
+      };
       let activeRange = "week";
       let devices = [];
       let dashboardData = null;
@@ -981,12 +999,13 @@
             const opacity = day.total_seconds
               ? Math.max(0.18, Math.min(1, day.total_seconds / maxTotal))
               : 0;
-            const color =
-              day.ac_seconds > day.heat_seconds + day.aux_heat_seconds
-                ? "59,130,246"
-                : "245,158,11";
+            const dominantState = stateOrder.reduce(function (best, state) {
+              return (day[stateFields[state]] || 0) > (day[stateFields[best]] || 0)
+                ? state
+                : best;
+            }, "heat");
             const bg = day.total_seconds
-              ? "rgba(" + color + "," + opacity + ")"
+              ? "rgba(var(" + stateColorVars[dominantState] + ")," + opacity + ")"
               : "rgba(148,163,184,0.14)";
             return (
               '<button class="day-cell" style="background:' +
