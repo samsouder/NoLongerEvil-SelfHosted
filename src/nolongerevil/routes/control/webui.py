@@ -10,10 +10,10 @@ logger = get_logger(__name__)
 
 # Path to HTML template (CSS and JS are inlined to avoid ingress path issues)
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+STATIC_DIR = Path(__file__).parent / "static"
 INDEX_TEMPLATE = TEMPLATE_DIR / "index.html"
 USAGE_HISTORY_TEMPLATE = TEMPLATE_DIR / "usage_history.html"
-NLE_ICON = TEMPLATE_DIR / "nle-icon.png"
-NLE_FAVICON = TEMPLATE_DIR / "nle-favicon.png"
+MANIFEST = STATIC_DIR / "manifest.webmanifest"
 
 
 async def handle_webui(request: web.Request) -> web.Response:
@@ -39,20 +39,18 @@ async def handle_usage_history_dashboard(request: web.Request) -> web.Response:
     return web.Response(text=html, content_type="text/html")
 
 
-async def handle_icon(_request: web.Request) -> web.Response:
-    """Serve the NLE icon."""
-    return web.Response(body=NLE_ICON.read_bytes(), content_type="image/png")
-
-
-async def handle_favicon(_request: web.Request) -> web.Response:
-    """Serve the NLE favicon."""
-    return web.Response(body=NLE_FAVICON.read_bytes(), content_type="image/png")
+async def handle_manifest(_request: web.Request) -> web.Response:
+    """Serve the PWA web manifest."""
+    return web.Response(
+        text=MANIFEST.read_text(encoding="utf-8"),
+        content_type="application/manifest+json",
+    )
 
 
 def create_webui_routes(app: web.Application) -> None:
     """Register web UI routes."""
     app.router.add_get("/", handle_webui)
     app.router.add_get("/usage-history", handle_usage_history_dashboard)
-    app.router.add_get("/nle-icon.png", handle_icon)
-    app.router.add_get("/nle-favicon.png", handle_favicon)
+    app.router.add_static("/assets/", STATIC_DIR, name="control_assets")
+    app.router.add_get("/manifest.webmanifest", handle_manifest)
     logger.info("Web UI routes registered")

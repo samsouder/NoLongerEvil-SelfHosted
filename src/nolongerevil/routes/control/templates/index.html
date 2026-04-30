@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="No Longer Evil">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>No Longer Evil</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
-  <link rel="icon" type="image/png" href="/nle-favicon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
+  <link rel="shortcut icon" type="image/png" href="assets/icons/favicon-32x32.png">
   <style>
     :root {
       /* NLE brand palette — light mode */
@@ -1783,7 +1791,7 @@
       const el = document.getElementById('deviceList');
       if (!devices.length) {
         const ingressPath = document.body.dataset.ingressPath || '';
-        el.innerHTML = '<div class="empty-state"><img src="' + ingressPath + '/nle-icon.png" alt="No Longer Evil">No devices yet.<br>Click \u201cAdd a new device\u201d to get started.<br><br><button class="btn-scan" onclick="scanDevices(\'scanResultsEmpty\')"><i class="mdi mdi-radar"></i> Scan for Nest Devices</button><div id="scanResultsEmpty" style="display:none;text-align:center;margin-top:12px;"></div></div>';
+        el.innerHTML = '<div class="empty-state"><img src="' + ingressPath + '/assets/icons/icon-192.png" alt="No Longer Evil">No devices yet.<br>Click \u201cAdd a new device\u201d to get started.<br><br><button class="btn-scan" onclick="scanDevices(\'scanResultsEmpty\')"><i class="mdi mdi-radar"></i> Scan for Nest Devices</button><div id="scanResultsEmpty" style="display:none;text-align:center;margin-top:12px;"></div></div>';
         return;
       }
       el.innerHTML = '<div class="devices">' + devices.map(d => {
